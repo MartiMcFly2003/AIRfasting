@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { ISODate } from "@/lib/calendar";
 import {
   detectRegularity,
-  getAverageCycleLength,
+  getAverageOfLastNCycles,
   getCycleLengths,
   type RegularityStatus,
 } from "@/lib/calendar/cycle-analysis";
@@ -18,6 +18,10 @@ export interface CycleHistoryPanelProps {
   onLogHistoric?: () => void;
   /** Opens the no-period-month dialog — omit to hide the "No period this month" affordance. */
   onLogNoPeriod?: () => void;
+  /** Removes a single period-start entry — omit to hide the remove control on those rows. */
+  onDeletePeriod?: (date: ISODate) => void;
+  /** Removes a single no-period-month entry — omit to hide the remove control on those rows. */
+  onDeleteNoPeriod?: (monthDate: ISODate) => void;
 }
 
 const STATUS_COPY: Record<RegularityStatus, string> = {
@@ -39,18 +43,47 @@ type HistoryRow =
   | { key: string; kind: "period"; date: ISODate; gap: number | null }
   | { key: string; kind: "no_period"; monthDate: ISODate };
 
+function RemoveRowButton({
+  label,
+  onRemove,
+  disabled,
+  disabledTitle,
+}: {
+  label: string;
+  onRemove: () => void;
+  disabled?: boolean;
+  disabledTitle?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onRemove}
+      disabled={disabled}
+      aria-label={label}
+      title={disabled ? disabledTitle : undefined}
+      className="font-accent text-xs text-silver hover:text-coral disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-silver"
+    >
+      Remove
+    </button>
+  );
+}
+
 export function CycleHistoryPanel({
   periodHistory,
   noPeriodMonths = [],
   onLogHistoric,
   onLogNoPeriod,
+  onDeletePeriod,
+  onDeleteNoPeriod,
 }: CycleHistoryPanelProps) {
   const [open, setOpen] = useState(false);
   // Regularity/average are deliberately based on periodHistory alone — a "no period" month is
   // informational, not a data point with a day-count to average, so it doesn't perturb either.
+  // Same "last 3 actual cycles" window detectRegularity and the rest of the app already use —
+  // an all-time average would silently drift from what those other views show as history grows.
   const cycleLengths = getCycleLengths(periodHistory);
   const regularity = detectRegularity(cycleLengths);
-  const averageCycleLength = getAverageCycleLength(periodHistory);
+  const averageCycleLength = getAverageOfLastNCycles(periodHistory, 3);
 
   const rows: HistoryRow[] = [
     ...periodHistory.map(
@@ -83,20 +116,41 @@ export function CycleHistoryPanel({
           <p className="font-body text-sm text-silver">{STATUS_COPY[regularity.status]}</p>
           {averageCycleLength !== null && (
             <p className="mt-1 font-body text-sm text-silver">
-              Average cycle length: <span className="text-ivory">{averageCycleLength} days</span>
+              Average cycle length (last 3): <span className="text-ivory">{averageCycleLength} days</span>
             </p>
           )}
           <ul className="mt-3 flex flex-col gap-1.5">
             {rows.map((row) =>
               row.kind === "period" ? (
-                <li key={row.key} className="flex justify-between font-body text-sm text-ivory">
+                <li key={row.key} className="flex items-center justify-between gap-2 font-body text-sm text-ivory">
                   <span>{row.date}</span>
-                  {row.gap !== null && <span className="text-silver">{row.gap}-day cycle</span>}
+                  <span className="flex items-center gap-3">
+                    {row.gap !== null && <span className="text-silver">{row.gap}-day cycle</span>}
+                    {onDeletePeriod && (
+                      <RemoveRowButton
+                        label={`Remove period logged on ${row.date}`}
+                        onRemove={() => onDeletePeriod(row.date)}
+                        disabled={periodHistory.length <= 1}
+                        disabledTitle="Can't remove your only logged period"
+                      />
+                    )}
+                  </span>
                 </li>
               ) : (
-                <li key={row.key} className="flex justify-between font-body text-sm text-ivory/60">
+                <li
+                  key={row.key}
+                  className="flex items-center justify-between gap-2 font-body text-sm text-ivory/60"
+                >
                   <span>{formatMonthLabel(row.monthDate)}</span>
-                  <span className="text-silver">No period</span>
+                  <span className="flex items-center gap-3">
+                    <span className="text-silver">No period</span>
+                    {onDeleteNoPeriod && (
+                      <RemoveRowButton
+                        label={`Remove no-period entry for ${formatMonthLabel(row.monthDate)}`}
+                        onRemove={() => onDeleteNoPeriod(row.monthDate)}
+                      />
+                    )}
+                  </span>
                 </li>
               ),
             )}

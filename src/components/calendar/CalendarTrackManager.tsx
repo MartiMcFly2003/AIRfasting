@@ -174,6 +174,10 @@ export function CalendarTrackManager({
     setShowLogHistoricDialog(false);
   }
 
+  function handleDeletePeriod(date: ISODate) {
+    handlePeriodHistoryChange(periodHistory.filter((d) => d !== date));
+  }
+
   function handleNoPeriodMonthsChange(nextUnsorted: ISODate[]) {
     const next = [...new Set(nextUnsorted)].sort();
     if (userId) void syncNoPeriodMonths(userId, noPeriodMonths, next).catch(reportSyncError);
@@ -187,6 +191,10 @@ export function CalendarTrackManager({
   function handleConfirmNoPeriodMonth(month: string) {
     handleNoPeriodMonthsChange([...noPeriodMonths, `${month}-01`]);
     setShowLogNoPeriodDialog(false);
+  }
+
+  function handleDeleteNoPeriodMonth(monthDate: ISODate) {
+    handleNoPeriodMonthsChange(noPeriodMonths.filter((m) => m !== monthDate));
   }
 
   function handleCycleLengthChange(next: number) {
@@ -384,6 +392,8 @@ export function CalendarTrackManager({
           noPeriodMonths={noPeriodMonths}
           onLogHistoric={() => setShowLogHistoricDialog(true)}
           onLogNoPeriod={() => setShowLogNoPeriodDialog(true)}
+          onDeletePeriod={handleDeletePeriod}
+          onDeleteNoPeriod={handleDeleteNoPeriodMonth}
         />
       )}
 
