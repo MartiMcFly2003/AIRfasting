@@ -25,6 +25,7 @@ import { FastContinuationDialog, LogActualHoursDialog, PlanFastDialog, RefeedInf
 import { MonthCalendar, PhaseLegend, PHASE_LABELS } from "./MonthCalendar";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
 import { CycleDeviationDialog, DateEntryDialog } from "./PeriodLogDialogs";
+import { PhaseFoodTipPanel } from "./PhaseFoodTipPanel";
 import { PremiumUpsellDialog } from "./PremiumUpsellDialog";
 
 function todayAsISODate(): ISODate {
@@ -53,6 +54,8 @@ export interface CalendarViewProps {
   activeFastPlanId: string | null;
   userId: string | null;
   onSyncError: (message: string) => void;
+  /** Admin-editable guidance copy — see CalendarTrackManagerProps for the full key list. */
+  content: Record<string, string>;
 }
 
 type DialogState =
@@ -91,6 +94,7 @@ export function CalendarView({
   activeFastPlanId,
   userId,
   onSyncError,
+  content,
 }: CalendarViewProps) {
   const periodStartDate = periodHistory[periodHistory.length - 1];
   const { confirmPlan, removePlan, confirmLog, removeLog } = useFastPlanCrud({
@@ -122,6 +126,8 @@ export function CalendarView({
 
   const refeedDays = useMemo(() => computeRefeedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
   const occupiedDays = useMemo(() => computeFastOccupiedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
+
+  const todayBlock = todayISO ? days.find((d) => d.date === todayISO)?.block : undefined;
 
   function handleLogPeriod(clickedDate: ISODate) {
     setDialog({ step: "log", clickedDate });
@@ -294,6 +300,8 @@ export function CalendarView({
 
       <PhaseLegend />
 
+      {todayBlock && <PhaseFoodTipPanel block={todayBlock} tip={content[`food_${todayBlock}`]} />}
+
       {dialog.step === "log" && (
         <DateEntryDialog
           title="Log your period"
@@ -337,6 +345,7 @@ export function CalendarView({
           existingPlan={dialog.existingPlan}
           initialFastType={dialog.initialFastType}
           minStartTime={dialog.minStartTime}
+          durationTip={content["education_duration"]}
           onConfirm={handleConfirmPlan}
           onRemove={dialog.existingPlan ? handleRemovePlan : undefined}
           onCancel={() => setDialog({ step: "none" })}

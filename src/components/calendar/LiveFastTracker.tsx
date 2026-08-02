@@ -19,6 +19,8 @@ export interface LiveFastTrackerProps {
   activeFast: ActiveFast | null;
   elapsedMs: number;
   todaysPlan?: FastPlan;
+  /** Contextual copy on typical fast durations — informational only, shown to every tier. */
+  durationTip?: string;
   onStart: (fastType: FastType, planId: string | null) => void;
   onStop: () => void;
 }
@@ -28,6 +30,7 @@ export function LiveFastTracker({
   activeFast,
   elapsedMs,
   todaysPlan,
+  durationTip,
   onStart,
   onStop,
 }: LiveFastTrackerProps) {
@@ -70,6 +73,7 @@ export function LiveFastTracker({
         <StartFastDialog
           initialFastType={todaysPlan?.fastType}
           linkedPlanLabel={todaysPlan ? "today's planned fast" : undefined}
+          durationTip={durationTip}
           onConfirm={(fastType) => {
             onStart(fastType, todaysPlan?.id ?? null);
             setDialogOpen(false);

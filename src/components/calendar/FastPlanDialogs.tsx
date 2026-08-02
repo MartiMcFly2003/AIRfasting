@@ -79,6 +79,8 @@ export interface PlanFastDialogProps {
    *  the source dry fast's own end date, so the new water fast can't start before the dry fast
    *  actually finished (that date's earlier hours are still occupied by the dry fast's tail). */
   minStartTime?: string;
+  /** Contextual copy on typical fast durations — informational only, shown to every tier. */
+  durationTip?: string;
   onConfirm: (fastType: FastType, plannedHours: number, startTime: string) => void;
   onRemove?: () => void;
   onCancel: () => void;
@@ -90,6 +92,7 @@ export function PlanFastDialog({
   existingPlan,
   initialFastType,
   minStartTime,
+  durationTip,
   onConfirm,
   onRemove,
   onCancel,
@@ -179,6 +182,8 @@ export function PlanFastDialog({
           className="w-full bg-transparent font-body text-sm text-ivory placeholder:text-silver/60 focus:outline-none"
         />
       </label>
+
+      {durationTip && <p className="mt-2 font-body text-xs text-silver">{durationTip}</p>}
 
       {endPreview && (
         <p className="mt-2 font-accent text-xs text-silver">
@@ -347,11 +352,19 @@ export interface StartFastDialogProps {
   initialFastType?: FastType;
   /** Shown in body copy when this fast will link to an existing plan, e.g. "today's planned water fast". */
   linkedPlanLabel?: string;
+  /** Contextual copy on typical fast durations — informational only, shown to every tier. */
+  durationTip?: string;
   onConfirm: (fastType: FastType) => void;
   onCancel: () => void;
 }
 
-export function StartFastDialog({ initialFastType, linkedPlanLabel, onConfirm, onCancel }: StartFastDialogProps) {
+export function StartFastDialog({
+  initialFastType,
+  linkedPlanLabel,
+  durationTip,
+  onConfirm,
+  onCancel,
+}: StartFastDialogProps) {
   const [fastType, setFastType] = useState<FastType | null>(initialFastType ?? null);
 
   return (
@@ -365,6 +378,8 @@ export function StartFastDialog({ initialFastType, linkedPlanLabel, onConfirm, o
         <FastTypeButton type="water" selected={fastType === "water"} onSelect={() => setFastType("water")} />
         <FastTypeButton type="dry" selected={fastType === "dry"} onSelect={() => setFastType("dry")} />
       </div>
+
+      {durationTip && <p className="mt-2 font-body text-xs text-silver">{durationTip}</p>}
 
       <div className="mt-5 flex flex-col gap-2">
         <PrimaryButton onClick={() => fastType && onConfirm(fastType)} disabled={!fastType}>

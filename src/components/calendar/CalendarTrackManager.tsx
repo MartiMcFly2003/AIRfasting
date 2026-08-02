@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   TRACK_PROTOCOL,
   FIXED_WEEKLY_RHYTHM_PATTERNS,
+  addDays,
   getPhaseDayInfo,
   getWeeklyRhythmDayLabel,
   getWeeklyRhythmSchedule,
@@ -34,6 +35,7 @@ import { LiveFastTracker } from "./LiveFastTracker";
 import { MoonSyncCalendarView } from "./MoonSyncCalendarView";
 import { IrregularPeriodDialog, PauseStatusStrip, UnpauseDialog, type PauseReason } from "./PauseDialogs";
 import { DateEntryDialog, MonthEntryDialog } from "./PeriodLogDialogs";
+import { PrepRefeedBanner } from "./PrepRefeedBanner";
 import { RegularDetectedBanner } from "./RegularDetectedBanner";
 import { WeeklyRhythmCalendarView } from "./WeeklyRhythmCalendarView";
 
@@ -81,6 +83,9 @@ export interface CalendarTrackManagerProps {
   todayISO?: ISODate;
   moonHighlights: Partial<Record<ISODate, MoonHighlightType>>;
   monthLabel: string;
+  /** Admin-editable guidance copy keyed by content-table row (education_duration, prep_day_before,
+   *  refeed_day_after, food_inhale/bloom/radiate/exhale). Missing keys degrade to no tip shown. */
+  content: Record<string, string>;
   /** Real onboarding answer, when present — falls back to the mock seed otherwise. */
   initialPeriodDate?: ISODate;
   /** Signed-in user id, or null when unauthenticated (the URL-param preview path). Every
@@ -103,6 +108,7 @@ export function CalendarTrackManager({
   todayISO,
   moonHighlights,
   monthLabel,
+  content,
   initialPeriodDate,
   userId,
   initialPeriodHistory,
@@ -140,6 +146,9 @@ export function CalendarTrackManager({
   const [showLogHistoricDialog, setShowLogHistoricDialog] = useState(false);
   const [showLogNoPeriodDialog, setShowLogNoPeriodDialog] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  // Dismissing the prep/refeed nudge only silences it for the current day — it naturally
+  // reappears once todayISO advances, with no extra persistence needed.
+  const [nudgeDismissedDate, setNudgeDismissedDate] = useState<ISODate | null>(null);
   const { activeFast, start: startFast, stop: stopFast, elapsedMs } = useActiveFast();
 
   function reportSyncError(e: unknown) {
@@ -238,6 +247,19 @@ export function CalendarTrackManager({
     }
   }
 
+  // Purely informational — unrelated to the RefeedInfoDialog/computeRefeedDays blocking
+  // mechanism, which only ever fires for 20h+ fasts. This nudge fires after any fast at all.
+  let showPrepNudge = false;
+  let showRefeedNudge = false;
+  if (todayISO && tier === "premium" && nudgeDismissedDate !== todayISO) {
+    const tomorrow = addDays(todayISO, 1);
+    const yesterday = addDays(todayISO, -1);
+    showRefeedNudge =
+      fastPlans.some((p) => p.plannedDate === yesterday) || fastLogs.some((l) => l.loggedDate === yesterday);
+    showPrepNudge = !showRefeedNudge && fastPlans.some((p) => p.plannedDate === tomorrow);
+  }
+  const prepRefeedTip = showRefeedNudge ? content["refeed_day_after"] : content["prep_day_before"];
+
   function handleStopFast() {
     const finished = stopFast();
     if (!finished) return;
@@ -319,11 +341,20 @@ export function CalendarTrackManager({
 
       {pause && <PauseStatusStrip reason={pause.reason} />}
 
+      {(showPrepNudge || showRefeedNudge) && prepRefeedTip && (
+        <PrepRefeedBanner
+          kind={showRefeedNudge ? "refeed" : "prep"}
+          message={prepRefeedTip}
+          onDismiss={() => setNudgeDismissedDate(todayISO ?? null)}
+        />
+      )}
+
       <LiveFastTracker
         todayFastingPossible={todayFastingPossible}
         activeFast={activeFast}
         elapsedMs={elapsedMs}
         todaysPlan={todaysPlan}
+        durationTip={content["education_duration"]}
         onStart={startFast}
         onStop={handleStopFast}
       />
@@ -347,6 +378,7 @@ export function CalendarTrackManager({
           activeFastPlanId={activeFast?.planId ?? null}
           userId={userId}
           onSyncError={reportSyncError}
+          content={content}
         />
       )}
       {protocol === "protocol2" && (
@@ -366,6 +398,7 @@ export function CalendarTrackManager({
           activeFastPlanId={activeFast?.planId ?? null}
           userId={userId}
           onSyncError={reportSyncError}
+          content={content}
         />
       )}
       {protocol === "protocol3" && (
@@ -383,6 +416,7 @@ export function CalendarTrackManager({
           activeFastPlanId={activeFast?.planId ?? null}
           userId={userId}
           onSyncError={reportSyncError}
+          content={content}
         />
       )}
 

@@ -23,6 +23,7 @@ import { FastContinuationDialog, LogActualHoursDialog, PlanFastDialog, RefeedInf
 import { MonthCalendar, PhaseLegend, PHASE_LABELS } from "./MonthCalendar";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
 import { DateEntryDialog } from "./PeriodLogDialogs";
+import { PhaseFoodTipPanel } from "./PhaseFoodTipPanel";
 import { PremiumUpsellDialog } from "./PremiumUpsellDialog";
 
 export interface MoonSyncCalendarViewProps {
@@ -44,6 +45,8 @@ export interface MoonSyncCalendarViewProps {
   activeFastPlanId: string | null;
   userId: string | null;
   onSyncError: (message: string) => void;
+  /** Admin-editable guidance copy — see CalendarTrackManagerProps for the full key list. */
+  content: Record<string, string>;
 }
 
 function todayAsISODate(): ISODate {
@@ -90,6 +93,7 @@ export function MoonSyncCalendarView({
   activeFastPlanId,
   userId,
   onSyncError,
+  content,
 }: MoonSyncCalendarViewProps) {
   const [moonInfo, setMoonInfo] = useState<{ date: ISODate; type: MoonHighlightType } | null>(null);
   const [dialog, setDialog] = useState<DialogState>({ step: "none" });
@@ -114,6 +118,8 @@ export function MoonSyncCalendarView({
 
   const refeedDays = useMemo(() => computeRefeedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
   const occupiedDays = useMemo(() => computeFastOccupiedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
+
+  const todayBlock = todayISO ? days.find((d) => d.date === todayISO)?.block : undefined;
 
   function handleConfirmLog(date: ISODate) {
     onPeriodHistoryChange([...periodHistory, date]);
@@ -245,6 +251,8 @@ export function MoonSyncCalendarView({
 
       <PhaseLegend />
 
+      {todayBlock && <PhaseFoodTipPanel block={todayBlock} tip={content[`food_${todayBlock}`]} />}
+
       {dialog.step === "log" && (
         <DateEntryDialog
           title="Log period start"
@@ -281,6 +289,7 @@ export function MoonSyncCalendarView({
           existingPlan={dialog.existingPlan}
           initialFastType={dialog.initialFastType}
           minStartTime={dialog.minStartTime}
+          durationTip={content["education_duration"]}
           onConfirm={handleConfirmPlan}
           onRemove={dialog.existingPlan ? handleRemovePlan : undefined}
           onCancel={() => setDialog({ step: "none" })}

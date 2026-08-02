@@ -77,7 +77,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       profile.weekly_rhythm_deep_fasting_days ?? FIXED_WEEKLY_RHYTHM_PATTERNS[weeklyRhythm].deepFastingDays,
   };
 
-  const [periodLogsResult, noPeriodMonthsResult, fastPlansResult, fastLogsResult] = await Promise.all([
+  const [periodLogsResult, noPeriodMonthsResult, fastPlansResult, fastLogsResult, contentResult] = await Promise.all([
     supabase
       .from("period_logs")
       .select("period_date")
@@ -97,6 +97,15 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       .from("fast_logs")
       .select("id, plan_id, logged_date, fast_type, planned_hours, actual_minutes, started_at, ended_at")
       .eq("user_id", user.id),
+    supabase.from("content").select("key, value").in("key", [
+      "education_duration",
+      "prep_day_before",
+      "refeed_day_after",
+      "food_inhale",
+      "food_bloom",
+      "food_radiate",
+      "food_exhale",
+    ]),
   ]);
 
   const initialPeriodHistory: ISODate[] = (periodLogsResult.data ?? []).map((row) => row.period_date as ISODate);
@@ -120,6 +129,9 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     startedAt: row.started_at,
     endedAt: row.ended_at,
   }));
+  const content: Record<string, string> = Object.fromEntries(
+    (contentResult.data ?? []).map((row) => [row.key, row.value ?? ""]),
+  );
 
   const isCurrentMonth = viewedMonth.year === currentMonth.year && viewedMonth.month === currentMonth.month;
   const isForecasted =
@@ -149,6 +161,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         todayISO={todayISO}
         moonHighlights={moonHighlights}
         monthLabel={monthLabel}
+        content={content}
         initialPeriodDate={initialPeriodDate}
         userId={user.id}
         initialPeriodHistory={initialPeriodHistory}

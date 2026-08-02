@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   daysInMonth,
   eachDate,
+  getWeeklyRhythmDayLabel,
   getWeeklyRhythmSchedule,
   moveDeepFastingDay,
   FIXED_WEEKLY_RHYTHM_PATTERNS,
@@ -11,7 +12,9 @@ import {
   type ISODate,
   type IsoWeekday,
   type MoonHighlightType,
+  type PhaseBlockName,
   type Tier,
+  type WeeklyDayLabel,
   type WeeklyRhythm,
   type WeeklyRhythmSelection,
   type YearMonth,
@@ -28,7 +31,17 @@ import { FastContinuationDialog, LogActualHoursDialog, PlanFastDialog, RefeedInf
 import { WeeklyRhythmCalendar, WeeklyRhythmLegend } from "./WeeklyRhythmCalendar";
 import { WeeklyRhythmPicker } from "./WeeklyRhythmPicker";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
+import { PhaseFoodTipPanel } from "./PhaseFoodTipPanel";
 import { PremiumUpsellDialog } from "./PremiumUpsellDialog";
+
+/** No "Bloom" equivalent in Protocol 3 — mirrors WeeklyRhythmCalendar.tsx's local, unexported
+ *  LABEL_TO_PHASE_ICON rather than exporting it, since this 3-entry lookup isn't worth a new
+ *  export surface. "unplanned" simply gets no food-tip panel. */
+const LABEL_TO_PHASE_BLOCK: Record<Exclude<WeeklyDayLabel, "unplanned">, PhaseBlockName> = {
+  fasting: "inhale",
+  deep_fasting: "radiate",
+  rest: "exhale",
+};
 
 export interface WeeklyRhythmCalendarViewProps {
   viewedMonth: YearMonth;
@@ -45,6 +58,8 @@ export interface WeeklyRhythmCalendarViewProps {
   activeFastPlanId: string | null;
   userId: string | null;
   onSyncError: (message: string) => void;
+  /** Admin-editable guidance copy — see CalendarTrackManagerProps for the full key list. */
+  content: Record<string, string>;
 }
 
 type DialogState =
@@ -83,6 +98,7 @@ export function WeeklyRhythmCalendarView({
   activeFastPlanId,
   userId,
   onSyncError,
+  content,
 }: WeeklyRhythmCalendarViewProps) {
   const [moonInfo, setMoonInfo] = useState<{ date: ISODate; type: MoonHighlightType } | null>(null);
   const [dialog, setDialog] = useState<DialogState>({ step: "none" });
@@ -100,6 +116,9 @@ export function WeeklyRhythmCalendarView({
 
   const refeedDays = useMemo(() => computeRefeedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
   const occupiedDays = useMemo(() => computeFastOccupiedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
+
+  const todayLabel = todayISO && schedule ? getWeeklyRhythmDayLabel(todayISO, schedule) : "unplanned";
+  const todayBlock = todayLabel !== "unplanned" ? LABEL_TO_PHASE_BLOCK[todayLabel] : undefined;
 
   function handleRhythmChange(rhythm: WeeklyRhythm) {
     onSelectionChange({ rhythm, ...FIXED_WEEKLY_RHYTHM_PATTERNS[rhythm] });
@@ -217,6 +236,8 @@ export function WeeklyRhythmCalendarView({
 
       <WeeklyRhythmLegend />
 
+      {todayBlock && <PhaseFoodTipPanel block={todayBlock} tip={content[`food_${todayBlock}`]} />}
+
       {dialog.step === "planFast" && (
         <PlanFastDialog
           dates={dialog.dates}
@@ -224,6 +245,7 @@ export function WeeklyRhythmCalendarView({
           existingPlan={dialog.existingPlan}
           initialFastType={dialog.initialFastType}
           minStartTime={dialog.minStartTime}
+          durationTip={content["education_duration"]}
           onConfirm={handleConfirmPlan}
           onRemove={dialog.existingPlan ? handleRemovePlan : undefined}
           onCancel={() => setDialog({ step: "none" })}
