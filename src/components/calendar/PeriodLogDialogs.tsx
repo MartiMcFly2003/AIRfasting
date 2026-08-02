@@ -55,6 +55,64 @@ export function DateEntryDialog({
   );
 }
 
+export interface MonthEntryDialogProps {
+  title: string;
+  description: string;
+  /** "YYYY-MM". */
+  initialMonth: string;
+  /** Earliest selectable month, inclusive, "YYYY-MM". */
+  min: string;
+  /** Latest selectable month, inclusive, "YYYY-MM". */
+  max: string;
+  confirmLabel: string;
+  onConfirm: (month: string) => void;
+  onCancel: () => void;
+  /** True when the given month already has a period start logged — disables Confirm. */
+  isMonthTaken: (month: string) => boolean;
+}
+
+export function MonthEntryDialog({
+  title,
+  description,
+  initialMonth,
+  min,
+  max,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+  isMonthTaken,
+}: MonthEntryDialogProps) {
+  const [month, setMonth] = useState(initialMonth);
+  const outOfRange = month < min || month > max;
+  const taken = !outOfRange && isMonthTaken(month);
+
+  return (
+    <DialogShell>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogBody>{description}</DialogBody>
+      <input
+        type="month"
+        value={month}
+        min={min}
+        max={max}
+        onChange={(e) => setMonth(e.target.value)}
+        className="mt-4 w-full rounded-lg border border-ivory/20 bg-transparent px-3 py-2 font-body text-sm text-ivory [color-scheme:dark]"
+      />
+      {taken && (
+        <p className="mt-2 font-accent text-xs text-coral">
+          You already logged a period start in this month.
+        </p>
+      )}
+      <div className="mt-5 flex flex-col gap-2">
+        <PrimaryButton onClick={() => onConfirm(month)} disabled={outOfRange || taken}>
+          {confirmLabel}
+        </PrimaryButton>
+        <CancelLink onClick={onCancel}>Cancel</CancelLink>
+      </div>
+    </DialogShell>
+  );
+}
+
 export interface CycleDeviationDialogProps {
   usualCycleLength: number;
   newCycleLength: number;

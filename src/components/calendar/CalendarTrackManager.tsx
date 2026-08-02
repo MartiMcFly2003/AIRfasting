@@ -18,6 +18,7 @@ import {
 import { detectLatePeriod, detectRegularity, getCycleLengths } from "@/lib/calendar/cycle-analysis";
 import { getPlansForMonth, type FastLog, type FastPlan } from "@/lib/calendar/fast-plans";
 import { insertFastLog } from "@/lib/calendar/persistence/fast-logs";
+import { syncNoPeriodMonths } from "@/lib/calendar/persistence/no-period-months";
 import { syncPeriodHistory } from "@/lib/calendar/persistence/period-logs";
 import {
   saveCycleLength,
@@ -32,7 +33,7 @@ import { FastAnalysisPanel, FastPlanSummaryPanel } from "./FastPlanningPanels";
 import { LiveFastTracker } from "./LiveFastTracker";
 import { MoonSyncCalendarView } from "./MoonSyncCalendarView";
 import { IrregularPeriodDialog, PauseStatusStrip, UnpauseDialog, type PauseReason } from "./PauseDialogs";
-import { DateEntryDialog } from "./PeriodLogDialogs";
+import { DateEntryDialog, MonthEntryDialog } from "./PeriodLogDialogs";
 import { RegularDetectedBanner } from "./RegularDetectedBanner";
 import { WeeklyRhythmCalendarView } from "./WeeklyRhythmCalendarView";
 
@@ -86,6 +87,8 @@ export interface CalendarTrackManagerProps {
    *  mutation below only persists to Supabase when this is set. */
   userId: string | null;
   initialPeriodHistory?: ISODate[];
+  /** First-of-month ISODates explicitly marked "no period". */
+  initialNoPeriodMonths?: ISODate[];
   initialFastPlans?: FastPlan[];
   initialFastLogs?: FastLog[];
   initialCycleLength?: number;
@@ -103,6 +106,7 @@ export function CalendarTrackManager({
   initialPeriodDate,
   userId,
   initialPeriodHistory,
+  initialNoPeriodMonths,
   initialFastPlans,
   initialFastLogs,
   initialCycleLength,
@@ -122,6 +126,7 @@ export function CalendarTrackManager({
         ? [initialPeriodDate]
         : MOCK_PERIOD_HISTORY,
   );
+  const [noPeriodMonths, setNoPeriodMonths] = useState<ISODate[]>(initialNoPeriodMonths ?? []);
   const [cycleLength, setCycleLength] = useState(initialCycleLength ?? MOCK_CYCLE_LENGTH);
   const [pause, setPause] = useState<PauseState | null>(initialPause ?? null);
   const [fastPlans, setFastPlans] = useState<FastPlan[]>(initialFastPlans ?? MOCK_FAST_PLANS);
@@ -133,6 +138,7 @@ export function CalendarTrackManager({
   const [irregularDialogDismissed, setIrregularDialogDismissed] = useState(false);
   const [showUnpauseDialog, setShowUnpauseDialog] = useState(false);
   const [showLogHistoricDialog, setShowLogHistoricDialog] = useState(false);
+  const [showLogNoPeriodDialog, setShowLogNoPeriodDialog] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const { activeFast, start: startFast, stop: stopFast, elapsedMs } = useActiveFast();
 
@@ -166,6 +172,21 @@ export function CalendarTrackManager({
   function handleConfirmHistoricPeriod(date: ISODate) {
     handlePeriodHistoryChange([...periodHistory, date]);
     setShowLogHistoricDialog(false);
+  }
+
+  function handleNoPeriodMonthsChange(nextUnsorted: ISODate[]) {
+    const next = [...new Set(nextUnsorted)].sort();
+    if (userId) void syncNoPeriodMonths(userId, noPeriodMonths, next).catch(reportSyncError);
+    setNoPeriodMonths(next);
+  }
+
+  function isMonthTaken(month: string): boolean {
+    return periodHistory.some((date) => date.startsWith(month));
+  }
+
+  function handleConfirmNoPeriodMonth(month: string) {
+    handleNoPeriodMonthsChange([...noPeriodMonths, `${month}-01`]);
+    setShowLogNoPeriodDialog(false);
   }
 
   function handleCycleLengthChange(next: number) {
@@ -360,7 +381,9 @@ export function CalendarTrackManager({
       {(protocol === "protocol1" || protocol === "protocol2") && (
         <CycleHistoryPanel
           periodHistory={periodHistory}
+          noPeriodMonths={noPeriodMonths}
           onLogHistoric={() => setShowLogHistoricDialog(true)}
+          onLogNoPeriod={() => setShowLogNoPeriodDialog(true)}
         />
       )}
 
@@ -393,6 +416,20 @@ export function CalendarTrackManager({
           confirmLabel="Add to history"
           onConfirm={handleConfirmHistoricPeriod}
           onCancel={() => setShowLogHistoricDialog(false)}
+        />
+      )}
+
+      {showLogNoPeriodDialog && (
+        <MonthEntryDialog
+          title="No period this month"
+          description="Record a month where you didn't get a period — useful for irregular or perimenopausal cycles."
+          initialMonth={todayAsISODate().slice(0, 7)}
+          min={`${new Date().getUTCFullYear()}-01`}
+          max={todayAsISODate().slice(0, 7)}
+          confirmLabel="Mark as no period"
+          onConfirm={handleConfirmNoPeriodMonth}
+          onCancel={() => setShowLogNoPeriodDialog(false)}
+          isMonthTaken={isMonthTaken}
         />
       )}
     </>

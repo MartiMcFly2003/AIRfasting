@@ -77,12 +77,17 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       profile.weekly_rhythm_deep_fasting_days ?? FIXED_WEEKLY_RHYTHM_PATTERNS[weeklyRhythm].deepFastingDays,
   };
 
-  const [periodLogsResult, fastPlansResult, fastLogsResult] = await Promise.all([
+  const [periodLogsResult, noPeriodMonthsResult, fastPlansResult, fastLogsResult] = await Promise.all([
     supabase
       .from("period_logs")
       .select("period_date")
       .eq("user_id", user.id)
       .order("period_date", { ascending: true }),
+    supabase
+      .from("no_period_months")
+      .select("month_date")
+      .eq("user_id", user.id)
+      .order("month_date", { ascending: true }),
     supabase
       .from("fast_plans")
       .select("id, planned_date, fast_type, planned_hours, start_time")
@@ -95,6 +100,9 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   ]);
 
   const initialPeriodHistory: ISODate[] = (periodLogsResult.data ?? []).map((row) => row.period_date as ISODate);
+  const initialNoPeriodMonths: ISODate[] = (noPeriodMonthsResult.data ?? []).map(
+    (row) => row.month_date as ISODate,
+  );
   const initialFastPlans: FastPlan[] = (fastPlansResult.data ?? []).map((row) => ({
     id: row.id,
     plannedDate: row.planned_date as ISODate,
@@ -144,6 +152,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         initialPeriodDate={initialPeriodDate}
         userId={user.id}
         initialPeriodHistory={initialPeriodHistory}
+        initialNoPeriodMonths={initialNoPeriodMonths}
         initialFastPlans={initialFastPlans}
         initialFastLogs={initialFastLogs}
         initialCycleLength={initialCycleLength}
