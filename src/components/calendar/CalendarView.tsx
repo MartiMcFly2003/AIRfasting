@@ -14,9 +14,14 @@ import {
 } from "@/lib/calendar";
 import { getAverageOfLastNCycles } from "@/lib/calendar/cycle-analysis";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
-import { computeRefeedDays, type RefeedDayInfo } from "@/lib/calendar/refeed";
+import {
+  computeFastOccupiedDays,
+  computeRefeedDays,
+  type FastOccupiedInfo,
+  type RefeedDayInfo,
+} from "@/lib/calendar/refeed";
 import { useFastPlanCrud } from "@/lib/calendar/use-fast-plan-crud";
-import { LogActualHoursDialog, PlanFastDialog, RefeedInfoDialog } from "./FastPlanDialogs";
+import { FastContinuationDialog, LogActualHoursDialog, PlanFastDialog, RefeedInfoDialog } from "./FastPlanDialogs";
 import { MonthCalendar, PhaseLegend, PHASE_LABELS } from "./MonthCalendar";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
 import { CycleDeviationDialog, DateEntryDialog } from "./PeriodLogDialogs";
@@ -55,9 +60,17 @@ type DialogState =
   | { step: "log"; clickedDate: ISODate }
   | { step: "adjust"; currentDate: ISODate }
   | { step: "deviation"; newDate: ISODate; newCycleLength: number }
-  | { step: "planFast"; dates: ISODate[]; blockLabel: string; existingPlan?: FastPlan; initialFastType?: FastType }
+  | {
+      step: "planFast";
+      dates: ISODate[];
+      blockLabel: string;
+      existingPlan?: FastPlan;
+      initialFastType?: FastType;
+      minStartTime?: string;
+    }
   | { step: "logActual"; plan: FastPlan; existingLog?: FastLog }
   | { step: "refeedInfo"; date: ISODate; info: RefeedDayInfo }
+  | { step: "occupiedInfo"; date: ISODate; info: FastOccupiedInfo }
   | { step: "upsell"; message: string };
 
 export function CalendarView({
@@ -108,6 +121,7 @@ export function CalendarView({
   const previousBlock = getPhaseDayInfo(dayBeforeMonth, "menstrual", menstrualCycle).block;
 
   const refeedDays = useMemo(() => computeRefeedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
+  const occupiedDays = useMemo(() => computeFastOccupiedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
 
   function handleLogPeriod(clickedDate: ISODate) {
     setDialog({ step: "log", clickedDate });
@@ -197,13 +211,27 @@ export function CalendarView({
   }
 
   function handlePlanWaterFastException(date: ISODate) {
+    const info = refeedDays[date];
     const block = days.find((d) => d.date === date)?.block;
     setDialog({
       step: "planFast",
       dates: [date],
       blockLabel: block ? PHASE_LABELS[block] : "",
       initialFastType: "water",
+      // Only meaningful on the source dry fast's own end date — its earlier hours are still
+      // that fast's tail, so the new water fast can't start before it actually finished.
+      minStartTime: info && info.sourceFastEndDate === date ? info.sourceFastEndTime : undefined,
     });
+  }
+
+  function handleOccupiedDayClick(date: ISODate) {
+    const info = occupiedDays[date];
+    if (info) setDialog({ step: "occupiedInfo", date, info });
+  }
+
+  function handleAdjustOriginalFast(planId: string) {
+    const plan = fastPlans.find((p) => p.id === planId);
+    if (plan) handleEditPlan(plan);
   }
 
   function handleConfirmPlan(fastType: FastType, plannedHours: number, startTime: string) {
@@ -258,6 +286,8 @@ export function CalendarView({
         }
         refeedDays={refeedDays}
         onRefeedDayClick={handleRefeedDayClick}
+        occupiedDays={occupiedDays}
+        onOccupiedDayClick={handleOccupiedDayClick}
         activeFastPlanId={activeFastPlanId}
         tier={tier}
       />
@@ -306,6 +336,7 @@ export function CalendarView({
           blockLabel={dialog.blockLabel}
           existingPlan={dialog.existingPlan}
           initialFastType={dialog.initialFastType}
+          minStartTime={dialog.minStartTime}
           onConfirm={handleConfirmPlan}
           onRemove={dialog.existingPlan ? handleRemovePlan : undefined}
           onCancel={() => setDialog({ step: "none" })}
@@ -319,6 +350,19 @@ export function CalendarView({
           onPlanWaterFastException={
             dialog.info.sourceFastType === "dry" && tier === "premium"
               ? () => handlePlanWaterFastException(dialog.date)
+              : undefined
+          }
+          onClose={() => setDialog({ step: "none" })}
+        />
+      )}
+
+      {dialog.step === "occupiedInfo" && (
+        <FastContinuationDialog
+          date={dialog.date}
+          info={dialog.info}
+          onAdjustOriginalFast={
+            tier === "premium" && dialog.info.planId
+              ? () => handleAdjustOriginalFast(dialog.info.planId!)
               : undefined
           }
           onClose={() => setDialog({ step: "none" })}

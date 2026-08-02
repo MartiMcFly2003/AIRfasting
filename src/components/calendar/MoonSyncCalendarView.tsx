@@ -12,9 +12,14 @@ import {
   type YearMonth,
 } from "@/lib/calendar";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
-import { computeRefeedDays, type RefeedDayInfo } from "@/lib/calendar/refeed";
+import {
+  computeFastOccupiedDays,
+  computeRefeedDays,
+  type FastOccupiedInfo,
+  type RefeedDayInfo,
+} from "@/lib/calendar/refeed";
 import { useFastPlanCrud } from "@/lib/calendar/use-fast-plan-crud";
-import { LogActualHoursDialog, PlanFastDialog, RefeedInfoDialog } from "./FastPlanDialogs";
+import { FastContinuationDialog, LogActualHoursDialog, PlanFastDialog, RefeedInfoDialog } from "./FastPlanDialogs";
 import { MonthCalendar, PhaseLegend, PHASE_LABELS } from "./MonthCalendar";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
 import { DateEntryDialog } from "./PeriodLogDialogs";
@@ -49,9 +54,17 @@ type DialogState =
   | { step: "none" }
   | { step: "log" }
   | { step: "adjust" }
-  | { step: "planFast"; dates: ISODate[]; blockLabel: string; existingPlan?: FastPlan; initialFastType?: FastType }
+  | {
+      step: "planFast";
+      dates: ISODate[];
+      blockLabel: string;
+      existingPlan?: FastPlan;
+      initialFastType?: FastType;
+      minStartTime?: string;
+    }
   | { step: "logActual"; plan: FastPlan; existingLog?: FastLog }
   | { step: "refeedInfo"; date: ISODate; info: RefeedDayInfo }
+  | { step: "occupiedInfo"; date: ISODate; info: FastOccupiedInfo }
   | { step: "upsell"; message: string };
 
 /**
@@ -100,6 +113,7 @@ export function MoonSyncCalendarView({
   const previousBlock = getPhaseDayInfo(dayBeforeMonth, "moon_sync").block;
 
   const refeedDays = useMemo(() => computeRefeedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
+  const occupiedDays = useMemo(() => computeFastOccupiedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
 
   function handleConfirmLog(date: ISODate) {
     onPeriodHistoryChange([...periodHistory, date]);
@@ -143,13 +157,25 @@ export function MoonSyncCalendarView({
   }
 
   function handlePlanWaterFastException(date: ISODate) {
+    const info = refeedDays[date];
     const block = days.find((d) => d.date === date)?.block;
     setDialog({
       step: "planFast",
       dates: [date],
       blockLabel: block ? PHASE_LABELS[block] : "",
       initialFastType: "water",
+      minStartTime: info && info.sourceFastEndDate === date ? info.sourceFastEndTime : undefined,
     });
+  }
+
+  function handleOccupiedDayClick(date: ISODate) {
+    const info = occupiedDays[date];
+    if (info) setDialog({ step: "occupiedInfo", date, info });
+  }
+
+  function handleAdjustOriginalFast(planId: string) {
+    const plan = fastPlans.find((p) => p.id === planId);
+    if (plan) handleEditPlan(plan);
   }
 
   function handleConfirmPlan(fastType: FastType, plannedHours: number, startTime: string) {
@@ -203,6 +229,8 @@ export function MoonSyncCalendarView({
         }
         refeedDays={refeedDays}
         onRefeedDayClick={handleRefeedDayClick}
+        occupiedDays={occupiedDays}
+        onOccupiedDayClick={handleOccupiedDayClick}
         activeFastPlanId={activeFastPlanId}
         tier={tier}
       />
@@ -248,6 +276,7 @@ export function MoonSyncCalendarView({
           blockLabel={dialog.blockLabel}
           existingPlan={dialog.existingPlan}
           initialFastType={dialog.initialFastType}
+          minStartTime={dialog.minStartTime}
           onConfirm={handleConfirmPlan}
           onRemove={dialog.existingPlan ? handleRemovePlan : undefined}
           onCancel={() => setDialog({ step: "none" })}
@@ -261,6 +290,19 @@ export function MoonSyncCalendarView({
           onPlanWaterFastException={
             dialog.info.sourceFastType === "dry" && tier === "premium"
               ? () => handlePlanWaterFastException(dialog.date)
+              : undefined
+          }
+          onClose={() => setDialog({ step: "none" })}
+        />
+      )}
+
+      {dialog.step === "occupiedInfo" && (
+        <FastContinuationDialog
+          date={dialog.date}
+          info={dialog.info}
+          onAdjustOriginalFast={
+            tier === "premium" && dialog.info.planId
+              ? () => handleAdjustOriginalFast(dialog.info.planId!)
               : undefined
           }
           onClose={() => setDialog({ step: "none" })}

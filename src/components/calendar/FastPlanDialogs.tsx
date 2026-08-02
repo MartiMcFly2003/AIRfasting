@@ -7,6 +7,7 @@ import {
   computeFastEnd,
   DRY_DISCLAIMER_THRESHOLD_HOURS,
   REFEED_THRESHOLD_HOURS,
+  type FastOccupiedInfo,
   type RefeedDayInfo,
 } from "@/lib/calendar/refeed";
 import { CancelLink, DialogBody, DialogShell, DialogTitle, PrimaryButton, SecondaryButton } from "./DialogPrimitives";
@@ -74,6 +75,10 @@ export interface PlanFastDialogProps {
   /** Preselects the fast-type picker — used when opening this dialog via the dry→water
    *  refeed exception, where planning a water fast is the whole point of the exception. */
   initialFastType?: FastType;
+  /** Earliest allowed "HH:MM" start time — set when opening via the dry→water exception on
+   *  the source dry fast's own end date, so the new water fast can't start before the dry fast
+   *  actually finished (that date's earlier hours are still occupied by the dry fast's tail). */
+  minStartTime?: string;
   onConfirm: (fastType: FastType, plannedHours: number, startTime: string) => void;
   onRemove?: () => void;
   onCancel: () => void;
@@ -84,6 +89,7 @@ export function PlanFastDialog({
   blockLabel,
   existingPlan,
   initialFastType,
+  minStartTime,
   onConfirm,
   onRemove,
   onCancel,
@@ -100,7 +106,9 @@ export function PlanFastDialog({
   // back-to-back long fasts with no refeed between them — exactly what refeed blocking exists
   // to prevent. A long fast can only be planned one day at a time.
   const multiDayLongFastBlocked = isLongFast && dates.length > 1;
-  const canSave = !!fastType && startTime.trim() !== "" && validHours && !multiDayLongFastBlocked;
+  const startsBeforeMinTime = !!minStartTime && startTime.trim() !== "" && startTime < minStartTime;
+  const canSave =
+    !!fastType && startTime.trim() !== "" && validHours && !multiDayLongFastBlocked && !startsBeforeMinTime;
 
   const endPreview =
     dates.length === 1 && fastType && startTime.trim() !== "" && validHours
@@ -185,6 +193,12 @@ export function PlanFastDialog({
         </p>
       )}
 
+      {startsBeforeMinTime && minStartTime && (
+        <p className="mt-2 font-accent text-xs text-coral">
+          {`Can't start before ${formatTimeLabel(minStartTime)} — the prior fast doesn't end until then.`}
+        </p>
+      )}
+
       <div className="mt-5 flex flex-col gap-2">
         <PrimaryButton onClick={handleSaveClick} disabled={!canSave}>
           Save plan
@@ -206,6 +220,9 @@ export interface RefeedInfoDialogProps {
 
 export function RefeedInfoDialog({ date, info, onPlanWaterFastException, onClose }: RefeedInfoDialogProps) {
   const allowException = info.sourceFastType === "dry" && !!onPlanWaterFastException;
+  // The source fast's own end date is part refeed, part still its actual tail — say so
+  // precisely rather than implying the whole day was always free.
+  const isFastEndDate = date === info.sourceFastEndDate;
 
   return (
     <DialogShell>
@@ -214,13 +231,49 @@ export function RefeedInfoDialog({ date, info, onPlanWaterFastException, onClose
         <DialogTitle>Refeed day</DialogTitle>
       </div>
       <DialogBody>
-        {`This day follows a ${info.sourceFastType} fast of ${REFEED_THRESHOLD_HOURS} hours or more, so it's set aside for refeeding — reintroducing food gradually rather than jumping straight back to normal meals. Start light (broth, soft fruit, small portions) and build back up over the next day or two. This block runs through ${formatDateLabel(info.refeedUntil)}.`}
+        {isFastEndDate
+          ? `Your ${info.sourceFastType} fast was already defined to end at ${formatTimeLabel(info.sourceFastEndTime)} today. From then on, this day is set aside for refeeding — reintroducing food gradually rather than jumping straight back to normal meals. Start light (broth, soft fruit, small portions) and build back up over the next day or two. This block runs through ${formatDateLabel(info.refeedUntil)}.`
+          : `This day follows a ${info.sourceFastType} fast of ${REFEED_THRESHOLD_HOURS} hours or more, so it's set aside for refeeding — reintroducing food gradually rather than jumping straight back to normal meals. Start light (broth, soft fruit, small portions) and build back up over the next day or two. This block runs through ${formatDateLabel(info.refeedUntil)}.`}
         {allowException &&
-          " Following a dry fast with a water fast is an exception to this block, if you'd like to plan one here."}
+          (isFastEndDate
+            ? ` Following a dry fast with a water fast is an exception to this block — you can plan one here, starting no earlier than ${formatTimeLabel(info.sourceFastEndTime)}.`
+            : " Following a dry fast with a water fast is an exception to this block, if you'd like to plan one here.")}
       </DialogBody>
       <div className="mt-5 flex flex-col gap-2">
         {allowException && (
           <SecondaryButton onClick={onPlanWaterFastException}>Plan a water fast here instead</SecondaryButton>
+        )}
+        <CancelLink onClick={onClose}>Close</CancelLink>
+      </div>
+    </DialogShell>
+  );
+}
+
+export interface FastContinuationDialogProps {
+  date: ISODate;
+  info: FastOccupiedInfo;
+  /** Only offered when info.planId is set (a real plan to edit) and the caller allows editing
+   *  (premium tier) — an ad-hoc live-tracked fast has no plan for this to point at. */
+  onAdjustOriginalFast?: () => void;
+  onClose: () => void;
+}
+
+/** Shown for a day that's still occupied by an earlier fast's tail (started the day before,
+ *  or earlier, and runs into this one) but isn't itself a refeed day — e.g. a fast under the
+ *  20h refeed threshold that simply crosses midnight. */
+export function FastContinuationDialog({ date, info, onAdjustOriginalFast, onClose }: FastContinuationDialogProps) {
+  return (
+    <DialogShell>
+      <p className="font-accent text-xs uppercase tracking-wider text-gold">{formatDateLabel(date)}</p>
+      <div className="mt-1">
+        <DialogTitle>Fast already in progress</DialogTitle>
+      </div>
+      <DialogBody>
+        {`A ${info.fastType} fast starting ${formatDateLabel(info.startDate)} was already defined to run until ${formatTimeLabel(info.endTime)} today. To extend your fasting window, adjust that fast or plan another one for a later day.`}
+      </DialogBody>
+      <div className="mt-5 flex flex-col gap-2">
+        {onAdjustOriginalFast && (
+          <SecondaryButton onClick={onAdjustOriginalFast}>Adjust the original fast</SecondaryButton>
         )}
         <CancelLink onClick={onClose}>Close</CancelLink>
       </div>

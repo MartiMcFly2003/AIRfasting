@@ -12,7 +12,7 @@ import {
   type WeeklyDayLabel,
 } from "@/lib/calendar";
 import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
-import type { RefeedDayInfo } from "@/lib/calendar/refeed";
+import type { FastOccupiedInfo, RefeedDayInfo } from "@/lib/calendar/refeed";
 import { FAST_MARKER_STYLE } from "./MonthCalendar";
 import { EkadashiSparkleIcon, FullMoonIcon, NewMoonIcon } from "./MoonIcons";
 import { PHASE_ICONS, StopIcon } from "./PhaseIcons";
@@ -103,6 +103,10 @@ export interface WeeklyRhythmCalendarProps {
    *  (via the dry→water exception). */
   refeedDays?: Record<ISODate, RefeedDayInfo>;
   onRefeedDayClick?: (date: ISODate) => void;
+  /** Days still occupied by an earlier fast's tail — a date already in refeedDays (the source
+   *  fast's own end date) renders as a refeed marker instead. */
+  occupiedDays?: Record<ISODate, FastOccupiedInfo>;
+  onOccupiedDayClick?: (date: ISODate) => void;
   activeFastPlanId?: string | null;
   /** Free tier can't create fastPlans at all, so any existing plan marker rendered under free
    *  tier is by definition leftover trial/premium data — dimmed as a reactivation lever. */
@@ -126,6 +130,8 @@ export function WeeklyRhythmCalendar({
   onLockedInteraction,
   refeedDays,
   onRefeedDayClick,
+  occupiedDays,
+  onOccupiedDayClick,
   activeFastPlanId,
   tier,
 }: WeeklyRhythmCalendarProps) {
@@ -159,7 +165,7 @@ export function WeeklyRhythmCalendar({
       setArmedRadiateDay(null);
       return;
     }
-    if (dayLabel !== "deep_fasting" || existingPlan || refeedDays?.[date]) return;
+    if (dayLabel !== "deep_fasting" || existingPlan || refeedDays?.[date] || occupiedDays?.[date]) return;
     if (onPlanRadiateDay) {
       onPlanRadiateDay(date);
     } else {
@@ -308,6 +314,19 @@ export function WeeklyRhythmCalendar({
                   className="absolute bottom-1.5 right-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-obsidian ring-1 ring-coral/60 transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral"
                 >
                   <StopIcon className="h-2.5 w-2.5 text-coral/80" />
+                </button>
+              )}
+              {!existingPlan && !adHocLogByDate.has(date) && !refeedDays?.[date] && occupiedDays?.[date] && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOccupiedDayClick?.(date);
+                  }}
+                  aria-label={`${occupiedDays[date].fastType} fast already running until ${occupiedDays[date].endTime} — tap to learn more`}
+                  className={`absolute bottom-1.5 right-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-obsidian ring-1 ${FAST_MARKER_STYLE[occupiedDays[date].fastType].ring} transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ivory`}
+                >
+                  <StopIcon className={`h-2.5 w-2.5 ${FAST_MARKER_STYLE[occupiedDays[date].fastType].text}`} />
                 </button>
               )}
               {isToday ? (
