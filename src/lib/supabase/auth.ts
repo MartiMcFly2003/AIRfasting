@@ -24,3 +24,8 @@ export async function updatePassword(newPassword: string) {
   const supabase = createClient();
   return supabase.auth.updateUser({ password: newPassword });
 }
+
+export async function verifyPasswordResetCode(email: string, token: string) {
+  const supabase = createClient();
+  return supabase.auth.verifyOtp({ email, token, type: "recovery" });
+}
