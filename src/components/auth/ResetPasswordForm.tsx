@@ -140,7 +140,7 @@ export function ResetPasswordForm() {
     <AuthShell>
       <h2 className="font-heading text-2xl tracking-wide text-ivory">Enter your code</h2>
       <p className="mt-3 font-body text-sm leading-relaxed text-silver">
-        We sent a 6-digit code to {email}. Enter it below along with your new password.
+        We sent a code to {email}. Enter it below along with your new password.
       </p>
       <form onSubmit={handleCodeSubmit} className="mt-4 flex flex-col gap-4">
         <label className="block">
@@ -149,7 +149,7 @@ export function ResetPasswordForm() {
             type="text"
             required
             inputMode="numeric"
-            maxLength={6}
+            maxLength={12}
             value={code}
             onChange={(e) => setCode(e.target.value)}
             className={TEXT_INPUT}

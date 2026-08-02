@@ -34,7 +34,7 @@ export function ForgotPasswordForm() {
     <AuthShell>
       <h2 className="font-heading text-2xl tracking-wide text-ivory">Reset your password</h2>
       <p className="mt-3 font-body text-sm leading-relaxed text-silver">
-        Enter your email and we&apos;ll send you a 6-digit code to reset your password.
+        Enter your email and we&apos;ll send you a code to reset your password.
       </p>
       <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
         <label className="block">
