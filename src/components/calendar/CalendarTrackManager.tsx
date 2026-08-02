@@ -108,8 +108,16 @@ export function CalendarTrackManager({
 }: CalendarTrackManagerProps) {
   const router = useRouter();
   const [track, setTrack] = useState<Track>(initialTrack);
+  // `initialPeriodHistory` can be an empty array (not just absent) if `last_period_date` was
+  // written to user_profiles but the matching period_logs row never landed — e.g. a partial
+  // failure between the two separate writes in saveOnboardingProfile. `??` alone doesn't catch
+  // that (`[]` isn't nullish), which crashed downstream date math expecting at least one entry.
   const [periodHistory, setPeriodHistory] = useState<ISODate[]>(
-    initialPeriodHistory ?? (initialPeriodDate ? [initialPeriodDate] : MOCK_PERIOD_HISTORY),
+    initialPeriodHistory && initialPeriodHistory.length > 0
+      ? initialPeriodHistory
+      : initialPeriodDate
+        ? [initialPeriodDate]
+        : MOCK_PERIOD_HISTORY,
   );
   const [cycleLength, setCycleLength] = useState(initialCycleLength ?? MOCK_CYCLE_LENGTH);
   const [pause, setPause] = useState<PauseState | null>(initialPause ?? null);
