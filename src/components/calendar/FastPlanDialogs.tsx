@@ -121,9 +121,7 @@ export function PlanFastDialog({
       <DialogShell>
         <DialogTitle>Extended dry fasting</DialogTitle>
         <DialogBody>
-          Dry fasts of {DRY_DISCLAIMER_THRESHOLD_HOURS} hours or longer are for experienced fasters only. Make
-          sure you&apos;ve prepared properly beforehand, and follow proper refeeding guidelines afterward — your
-          body needs both to handle a fast this long safely.
+          {`Dry fasts of ${DRY_DISCLAIMER_THRESHOLD_HOURS} hours or longer are for experienced fasters only. Make sure you've prepared properly beforehand, and follow proper refeeding guidelines afterward — your body needs both to handle a fast this long safely.`}
         </DialogBody>
         <div className="mt-5 flex flex-col gap-2">
           <PrimaryButton onClick={() => fastType && onConfirm(fastType, parsedHours!, startTime)}>
@@ -216,10 +214,7 @@ export function RefeedInfoDialog({ date, info, onPlanWaterFastException, onClose
         <DialogTitle>Refeed day</DialogTitle>
       </div>
       <DialogBody>
-        This day follows a {info.sourceFastType} fast of {REFEED_THRESHOLD_HOURS} hours or more, so it&apos;s set
-        aside for refeeding — reintroducing food gradually rather than jumping straight back to normal meals.
-        Start light (broth, soft fruit, small portions) and build back up over the next day or two. This block
-        runs through {formatDateLabel(info.refeedUntil)}.
+        {`This day follows a ${info.sourceFastType} fast of ${REFEED_THRESHOLD_HOURS} hours or more, so it's set aside for refeeding — reintroducing food gradually rather than jumping straight back to normal meals. Start light (broth, soft fruit, small portions) and build back up over the next day or two. This block runs through ${formatDateLabel(info.refeedUntil)}.`}
         {allowException &&
           " Following a dry fast with a water fast is an exception to this block, if you'd like to plan one here."}
       </DialogBody>
