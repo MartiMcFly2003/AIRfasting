@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { PrimaryButton } from "@/components/calendar/DialogPrimitives";
 import { updatePassword, verifyPasswordResetCode } from "@/lib/supabase/auth";
@@ -10,28 +10,24 @@ import { AuthShell, FIELD_LABEL, InlineError, TEXT_INPUT } from "./AuthPrimitive
 // "code"/"verifying" render the code+password form; "ready"/"saving" render the password-only
 // retry form (code already consumed). Kept as distinct pairs rather than a shared "submitting"
 // flag so each form's own render branch stays simple, with no impossible status comparisons.
-type Status = "code" | "verifying" | "ready" | "saving" | "missing-email";
+type Status = "code" | "verifying" | "ready" | "saving";
 
 // Gmail (and most email security scanners) pre-visit links inside incoming emails to check
 // them for safety, which silently consumes Supabase's single-use recovery link before the user
 // ever clicks it themselves — confirmed directly against this project's real production traffic,
 // not a hypothetical. A 6-digit code typed in manually sidesteps that entirely, since nothing
 // can "pre-click" a code. This replaces the old hash/?code= link-based exchange completely.
-function getInitialStatus(): Status {
-  if (typeof window === "undefined") return "code";
-  const hasEmail = new URLSearchParams(window.location.search).has("email");
-  return hasEmail ? "code" : "missing-email";
-}
-
-function getEmailFromUrl(): string {
-  if (typeof window === "undefined") return "";
-  return new URLSearchParams(window.location.search).get("email") ?? "";
-}
-
+//
+// The email is read via useSearchParams() rather than parsing window.location.search directly —
+// tried the latter first and it broke specifically for the client-side router.push() navigation
+// from ForgotPasswordForm (worked fine on a hard page load): the component's initial render ran
+// before Next.js's client-side history update had actually landed, reading the pre-navigation
+// URL. useSearchParams() reflects Next.js's own routing state instead of raw DOM location.
 export function ResetPasswordForm() {
   const router = useRouter();
-  const [status, setStatus] = useState<Status>(getInitialStatus);
-  const [email] = useState(getEmailFromUrl);
+  const searchParams = useSearchParams();
+  const email = searchParams.get("email") ?? "";
+  const [status, setStatus] = useState<Status>("code");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -89,7 +85,7 @@ export function ResetPasswordForm() {
     router.refresh();
   }
 
-  if (status === "missing-email") {
+  if (!email) {
     return (
       <AuthShell>
         <h2 className="font-heading text-2xl tracking-wide text-ivory">We&apos;re not sure whose code this is</h2>
