@@ -248,9 +248,13 @@ export function MoonSyncCalendarView({
       {dialog.step === "log" && (
         <DateEntryDialog
           title="Log period start"
-          description="Record the first day of your period. Irregular cycles can't be forecasted, so pick any date up to today."
+          description="Record the first day of a period — this month's or an earlier one you missed. Irregular cycles can't be forecasted, so pick any date up to today."
           initialDate={todayAsISODate()}
-          min={periodStartDate ? addDays(periodStartDate, 1) : undefined}
+          // Deliberately not gated to "after the last logged period" — that would make this
+          // button unable to backfill a missed month while browsing an earlier month via
+          // MonthNav, which is exactly when someone reaches for it. handlePeriodHistoryChange
+          // sorts on every write, so an out-of-order historic date still lands correctly.
+          min={`${new Date().getUTCFullYear()}-01-01`}
           max={todayAsISODate()}
           confirmLabel="Confirm period start"
           onConfirm={handleConfirmLog}
