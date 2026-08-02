@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   addDays,
   daysInMonth,
@@ -12,8 +12,9 @@ import {
   type YearMonth,
 } from "@/lib/calendar";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
+import { computeRefeedDays, type RefeedDayInfo } from "@/lib/calendar/refeed";
 import { useFastPlanCrud } from "@/lib/calendar/use-fast-plan-crud";
-import { PlanFastDialog, LogActualHoursDialog } from "./FastPlanDialogs";
+import { LogActualHoursDialog, PlanFastDialog, RefeedInfoDialog } from "./FastPlanDialogs";
 import { MonthCalendar, PhaseLegend, PHASE_LABELS } from "./MonthCalendar";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
 import { DateEntryDialog } from "./PeriodLogDialogs";
@@ -48,8 +49,9 @@ type DialogState =
   | { step: "none" }
   | { step: "log" }
   | { step: "adjust" }
-  | { step: "planFast"; dates: ISODate[]; blockLabel: string; existingPlan?: FastPlan }
+  | { step: "planFast"; dates: ISODate[]; blockLabel: string; existingPlan?: FastPlan; initialFastType?: FastType }
   | { step: "logActual"; plan: FastPlan; existingLog?: FastLog }
+  | { step: "refeedInfo"; date: ISODate; info: RefeedDayInfo }
   | { step: "upsell"; message: string };
 
 /**
@@ -97,6 +99,8 @@ export function MoonSyncCalendarView({
   const dayBeforeMonth = addDays(toISODate(viewedMonth, 1), -1);
   const previousBlock = getPhaseDayInfo(dayBeforeMonth, "moon_sync").block;
 
+  const refeedDays = useMemo(() => computeRefeedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
+
   function handleConfirmLog(date: ISODate) {
     onPeriodHistoryChange([...periodHistory, date]);
     setDialog({ step: "none" });
@@ -133,9 +137,24 @@ export function MoonSyncCalendarView({
     });
   }
 
-  function handleConfirmPlan(fastType: FastType, plannedHours: number | null) {
+  function handleRefeedDayClick(date: ISODate) {
+    const info = refeedDays[date];
+    if (info) setDialog({ step: "refeedInfo", date, info });
+  }
+
+  function handlePlanWaterFastException(date: ISODate) {
+    const block = days.find((d) => d.date === date)?.block;
+    setDialog({
+      step: "planFast",
+      dates: [date],
+      blockLabel: block ? PHASE_LABELS[block] : "",
+      initialFastType: "water",
+    });
+  }
+
+  function handleConfirmPlan(fastType: FastType, plannedHours: number, startTime: string) {
     if (dialog.step !== "planFast") return;
-    confirmPlan({ dates: dialog.dates, existingPlan: dialog.existingPlan, fastType, plannedHours });
+    confirmPlan({ dates: dialog.dates, existingPlan: dialog.existingPlan, fastType, plannedHours, startTime });
     setDialog({ step: "none" });
   }
 
@@ -182,6 +201,8 @@ export function MoonSyncCalendarView({
             ? () => setDialog({ step: "upsell", message: "Planning fasting days ahead is a Premium feature." })
             : undefined
         }
+        refeedDays={refeedDays}
+        onRefeedDayClick={handleRefeedDayClick}
         activeFastPlanId={activeFastPlanId}
         tier={tier}
       />
@@ -226,9 +247,23 @@ export function MoonSyncCalendarView({
           dates={dialog.dates}
           blockLabel={dialog.blockLabel}
           existingPlan={dialog.existingPlan}
+          initialFastType={dialog.initialFastType}
           onConfirm={handleConfirmPlan}
           onRemove={dialog.existingPlan ? handleRemovePlan : undefined}
           onCancel={() => setDialog({ step: "none" })}
+        />
+      )}
+
+      {dialog.step === "refeedInfo" && (
+        <RefeedInfoDialog
+          date={dialog.date}
+          info={dialog.info}
+          onPlanWaterFastException={
+            dialog.info.sourceFastType === "dry" && tier === "premium"
+              ? () => handlePlanWaterFastException(dialog.date)
+              : undefined
+          }
+          onClose={() => setDialog({ step: "none" })}
         />
       )}
 

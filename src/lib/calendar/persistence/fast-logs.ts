@@ -14,6 +14,8 @@ export async function insertFastLog(userId: string, log: FastLog): Promise<void>
     fast_type: log.fastType,
     planned_hours: log.plannedHours,
     actual_minutes: log.actualMinutes,
+    started_at: log.startedAt,
+    ended_at: log.endedAt,
   });
   if (error) throw error;
 }

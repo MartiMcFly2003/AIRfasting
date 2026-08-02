@@ -20,6 +20,7 @@ export interface UseFastPlanCrudResult {
     existingPlan?: FastPlan;
     fastType: FastType;
     plannedHours: number | null;
+    startTime: string | null;
   }) => void;
   removePlan: (planId: string) => void;
   confirmLog: (args: { plan: FastPlan; existingLog?: FastLog; actualMinutes: number }) => void;
@@ -47,15 +48,17 @@ export function useFastPlanCrud({
     existingPlan,
     fastType,
     plannedHours,
+    startTime,
   }: {
     dates: ISODate[];
     existingPlan?: FastPlan;
     fastType: FastType;
     plannedHours: number | null;
+    startTime: string | null;
   }) {
     if (existingPlan) {
       const planId = existingPlan.id;
-      const updated: FastPlan = { ...existingPlan, fastType, plannedHours };
+      const updated: FastPlan = { ...existingPlan, fastType, plannedHours, startTime };
       onFastPlansChange(fastPlans.map((p) => (p.id === planId ? updated : p)));
       if (userId) void updateFastPlan(userId, updated).catch(reportError);
     } else {
@@ -64,6 +67,7 @@ export function useFastPlanCrud({
         plannedDate: date,
         fastType,
         plannedHours,
+        startTime,
       }));
       onFastPlansChange([...fastPlans, ...newPlans]);
       if (userId) void insertFastPlans(userId, newPlans).catch(reportError);
@@ -98,6 +102,10 @@ export function useFastPlanCrud({
         fastType: plan.fastType,
         plannedHours: plan.plannedHours,
         actualMinutes,
+        // Logged manually after the fact, not live-tracked — no genuine start/end timestamp
+        // to record. computeRefeedDays falls back to plan.plannedDate + plan.startTime.
+        startedAt: null,
+        endedAt: null,
       };
       onFastLogsChange([...fastLogs, newLog]);
       if (userId) void insertFastLog(userId, newLog).catch(reportError);

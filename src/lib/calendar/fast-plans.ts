@@ -9,6 +9,11 @@ export interface FastPlan {
   fastType: FastType;
   /** null = no duration target set. */
   plannedHours: number | null;
+  /** "HH:MM", 24h. Required by PlanFastDialog for any new/edited plan going forward — null
+   *  only marks a plan created before this field existed ("legacy"), which the end-time
+   *  display and refeed-window computation (src/lib/calendar/refeed.ts) simply skip rather
+   *  than guessing a time. */
+  startTime: string | null;
 }
 
 export interface FastLog {
@@ -23,6 +28,11 @@ export interface FastLog {
   /** Snapshot of the plan's target at log time; null for ad-hoc fasts (no target). */
   plannedHours: number | null;
   actualMinutes: number;
+  /** Full ISO 8601 timestamps, set for live-tracked fasts (see CalendarTrackManager's
+   *  handleStopFast). Null for fasts logged manually after the fact against a plan with no
+   *  startTime — refeed-window computation falls back to plannedDate+startTime in that case. */
+  startedAt: string | null;
+  endedAt: string | null;
 }
 
 export function getPlansForMonth(plans: FastPlan[], month: YearMonth): FastPlan[] {

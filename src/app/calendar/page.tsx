@@ -85,12 +85,12 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       .order("period_date", { ascending: true }),
     supabase
       .from("fast_plans")
-      .select("id, planned_date, fast_type, planned_hours")
+      .select("id, planned_date, fast_type, planned_hours, start_time")
       .eq("user_id", user.id)
       .order("planned_date", { ascending: true }),
     supabase
       .from("fast_logs")
-      .select("id, plan_id, logged_date, fast_type, planned_hours, actual_minutes")
+      .select("id, plan_id, logged_date, fast_type, planned_hours, actual_minutes, started_at, ended_at")
       .eq("user_id", user.id),
   ]);
 
@@ -100,6 +100,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     plannedDate: row.planned_date as ISODate,
     fastType: row.fast_type as FastPlan["fastType"],
     plannedHours: row.planned_hours,
+    startTime: row.start_time,
   }));
   const initialFastLogs: FastLog[] = (fastLogsResult.data ?? []).map((row) => ({
     id: row.id,
@@ -108,6 +109,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     fastType: row.fast_type as FastLog["fastType"],
     plannedHours: row.planned_hours,
     actualMinutes: row.actual_minutes,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
   }));
 
   const isCurrentMonth = viewedMonth.year === currentMonth.year && viewedMonth.month === currentMonth.month;

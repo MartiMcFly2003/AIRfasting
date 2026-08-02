@@ -130,6 +130,17 @@ export function DryFastIcon(props: IconProps) {
   );
 }
 
+/** Solid octagon — marks a refeed day following a 20h+ fast. Filled like PausedMarkerIcon
+ *  (a state you can't act around) rather than outlined like WaterFastIcon/DryFastIcon (a
+ *  choice you made), since a refeed day isn't something the user planned. */
+export function StopIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" {...props}>
+      <path d="M8.3 2.5h7.4l5.3 5.3v7.4l-5.3 5.3H8.3L3 15.2V7.8z" />
+    </svg>
+  );
+}
+
 /** Simple clock face — used only inside the fast-planning dialogs next to an hours value, never on the small day-cell marker (illegible at that size). */
 export function FastClockIcon(props: IconProps) {
   return (

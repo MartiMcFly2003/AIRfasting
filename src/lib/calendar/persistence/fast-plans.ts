@@ -12,6 +12,7 @@ export async function insertFastPlans(userId: string, plans: FastPlan[]): Promis
       planned_date: plan.plannedDate,
       fast_type: plan.fastType,
       planned_hours: plan.plannedHours,
+      start_time: plan.startTime,
     })),
   );
   if (error) throw error;
@@ -21,7 +22,7 @@ export async function updateFastPlan(userId: string, plan: FastPlan): Promise<vo
   const supabase = createClient();
   const { error } = await supabase
     .from("fast_plans")
-    .update({ fast_type: plan.fastType, planned_hours: plan.plannedHours })
+    .update({ fast_type: plan.fastType, planned_hours: plan.plannedHours, start_time: plan.startTime })
     .eq("id", plan.id)
     .eq("user_id", userId);
   if (error) throw error;

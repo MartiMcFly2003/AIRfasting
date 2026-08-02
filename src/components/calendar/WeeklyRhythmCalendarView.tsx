@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   daysInMonth,
   eachDate,
@@ -17,8 +17,9 @@ import {
   type YearMonth,
 } from "@/lib/calendar";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
+import { computeRefeedDays, type RefeedDayInfo } from "@/lib/calendar/refeed";
 import { useFastPlanCrud } from "@/lib/calendar/use-fast-plan-crud";
-import { PlanFastDialog, LogActualHoursDialog } from "./FastPlanDialogs";
+import { LogActualHoursDialog, PlanFastDialog, RefeedInfoDialog } from "./FastPlanDialogs";
 import { WeeklyRhythmCalendar, WeeklyRhythmLegend } from "./WeeklyRhythmCalendar";
 import { WeeklyRhythmPicker } from "./WeeklyRhythmPicker";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
@@ -43,8 +44,9 @@ export interface WeeklyRhythmCalendarViewProps {
 
 type DialogState =
   | { step: "none" }
-  | { step: "planFast"; dates: ISODate[]; blockLabel: string; existingPlan?: FastPlan }
+  | { step: "planFast"; dates: ISODate[]; blockLabel: string; existingPlan?: FastPlan; initialFastType?: FastType }
   | { step: "logActual"; plan: FastPlan; existingLog?: FastLog }
+  | { step: "refeedInfo"; date: ISODate; info: RefeedDayInfo }
   | { step: "upsell"; message: string };
 
 /**
@@ -83,6 +85,8 @@ export function WeeklyRhythmCalendarView({
   const schedule = getWeeklyRhythmSchedule(selection);
   const days = eachDate(toISODate(viewedMonth, 1), toISODate(viewedMonth, daysInMonth(viewedMonth)));
 
+  const refeedDays = useMemo(() => computeRefeedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
+
   function handleRhythmChange(rhythm: WeeklyRhythm) {
     onSelectionChange({ rhythm, ...FIXED_WEEKLY_RHYTHM_PATTERNS[rhythm] });
   }
@@ -110,9 +114,18 @@ export function WeeklyRhythmCalendarView({
     });
   }
 
-  function handleConfirmPlan(fastType: FastType, plannedHours: number | null) {
+  function handleRefeedDayClick(date: ISODate) {
+    const info = refeedDays[date];
+    if (info) setDialog({ step: "refeedInfo", date, info });
+  }
+
+  function handlePlanWaterFastException(date: ISODate) {
+    setDialog({ step: "planFast", dates: [date], blockLabel: "Radiate", initialFastType: "water" });
+  }
+
+  function handleConfirmPlan(fastType: FastType, plannedHours: number, startTime: string) {
     if (dialog.step !== "planFast") return;
-    confirmPlan({ dates: dialog.dates, existingPlan: dialog.existingPlan, fastType, plannedHours });
+    confirmPlan({ dates: dialog.dates, existingPlan: dialog.existingPlan, fastType, plannedHours, startTime });
     setDialog({ step: "none" });
   }
 
@@ -163,6 +176,8 @@ export function WeeklyRhythmCalendarView({
             ? () => setDialog({ step: "upsell", message: "Customizing your fasting rhythm is a Premium feature." })
             : undefined
         }
+        refeedDays={refeedDays}
+        onRefeedDayClick={handleRefeedDayClick}
         activeFastPlanId={activeFastPlanId}
         tier={tier}
       />
@@ -174,9 +189,23 @@ export function WeeklyRhythmCalendarView({
           dates={dialog.dates}
           blockLabel={dialog.blockLabel}
           existingPlan={dialog.existingPlan}
+          initialFastType={dialog.initialFastType}
           onConfirm={handleConfirmPlan}
           onRemove={dialog.existingPlan ? handleRemovePlan : undefined}
           onCancel={() => setDialog({ step: "none" })}
+        />
+      )}
+
+      {dialog.step === "refeedInfo" && (
+        <RefeedInfoDialog
+          date={dialog.date}
+          info={dialog.info}
+          onPlanWaterFastException={
+            dialog.info.sourceFastType === "dry" && tier === "premium"
+              ? () => handlePlanWaterFastException(dialog.date)
+              : undefined
+          }
+          onClose={() => setDialog({ step: "none" })}
         />
       )}
 

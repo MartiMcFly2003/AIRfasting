@@ -12,9 +12,10 @@ import {
   type WeeklyDayLabel,
 } from "@/lib/calendar";
 import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
+import type { RefeedDayInfo } from "@/lib/calendar/refeed";
 import { FAST_MARKER_STYLE } from "./MonthCalendar";
 import { EkadashiSparkleIcon, FullMoonIcon, NewMoonIcon } from "./MoonIcons";
-import { PHASE_ICONS } from "./PhaseIcons";
+import { PHASE_ICONS, StopIcon } from "./PhaseIcons";
 
 const MOON_HIGHLIGHT_ICONS: Record<MoonHighlightType, (props: React.SVGProps<SVGSVGElement>) => React.JSX.Element> = {
   new_moon: NewMoonIcon,
@@ -97,6 +98,11 @@ export interface WeeklyRhythmCalendarProps {
   onLogActualHours?: (plan: FastPlan) => void;
   /** Free tier — shown instead of arming/planning when the gated callbacks above are absent. */
   onLockedInteraction?: () => void;
+  /** Days blocked for refeeding after a 20h+ fast (see src/lib/calendar/refeed.ts). Excluded
+   *  from onPlanRadiateDay entirely — the stop-icon marker is the only way back into planning
+   *  (via the dry→water exception). */
+  refeedDays?: Record<ISODate, RefeedDayInfo>;
+  onRefeedDayClick?: (date: ISODate) => void;
   activeFastPlanId?: string | null;
   /** Free tier can't create fastPlans at all, so any existing plan marker rendered under free
    *  tier is by definition leftover trial/premium data — dimmed as a reactivation lever. */
@@ -118,6 +124,8 @@ export function WeeklyRhythmCalendar({
   onEditPlan,
   onLogActualHours,
   onLockedInteraction,
+  refeedDays,
+  onRefeedDayClick,
   activeFastPlanId,
   tier,
 }: WeeklyRhythmCalendarProps) {
@@ -151,7 +159,7 @@ export function WeeklyRhythmCalendar({
       setArmedRadiateDay(null);
       return;
     }
-    if (dayLabel !== "deep_fasting" || existingPlan) return;
+    if (dayLabel !== "deep_fasting" || existingPlan || refeedDays?.[date]) return;
     if (onPlanRadiateDay) {
       onPlanRadiateDay(date);
     } else {
@@ -289,6 +297,19 @@ export function WeeklyRhythmCalendar({
                     </span>
                   );
                 })()}
+              {!existingPlan && !adHocLogByDate.has(date) && refeedDays?.[date] && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRefeedDayClick?.(date);
+                  }}
+                  aria-label={`Refeed day, following a ${refeedDays[date].sourceFastType} fast — tap to learn more`}
+                  className="absolute bottom-1.5 right-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-obsidian ring-1 ring-coral/60 transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral"
+                >
+                  <StopIcon className="h-2.5 w-2.5 text-coral/80" />
+                </button>
+              )}
               {isToday ? (
                 <span
                   className={`flex h-6 w-6 items-center justify-center rounded-full ${style.solidBg} font-body text-sm font-semibold text-obsidian ring-2 ring-ivory/50 ${style.glow}`}

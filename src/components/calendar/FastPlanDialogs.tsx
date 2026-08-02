@@ -3,8 +3,30 @@
 import { useState } from "react";
 import type { ISODate } from "@/lib/calendar";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
+import {
+  computeFastEnd,
+  DRY_DISCLAIMER_THRESHOLD_HOURS,
+  REFEED_THRESHOLD_HOURS,
+  type RefeedDayInfo,
+} from "@/lib/calendar/refeed";
 import { CancelLink, DialogBody, DialogShell, DialogTitle, PrimaryButton, SecondaryButton } from "./DialogPrimitives";
 import { DryFastIcon, FastClockIcon, WaterFastIcon } from "./PhaseIcons";
+
+function formatDateLabel(date: ISODate): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function formatTimeLabel(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+}
 
 const FAST_TYPE_STYLE: Record<FastType, { label: string; ring: string; solidBg: string; text: string }> = {
   water: { label: "Water fast", ring: "ring-silver", solidBg: "bg-silver", text: "text-silver" },
@@ -49,19 +71,68 @@ export interface PlanFastDialogProps {
   blockLabel: string;
   /** Set when editing a single already-planned day. */
   existingPlan?: FastPlan;
-  onConfirm: (fastType: FastType, plannedHours: number | null) => void;
+  /** Preselects the fast-type picker — used when opening this dialog via the dry→water
+   *  refeed exception, where planning a water fast is the whole point of the exception. */
+  initialFastType?: FastType;
+  onConfirm: (fastType: FastType, plannedHours: number, startTime: string) => void;
   onRemove?: () => void;
   onCancel: () => void;
 }
 
-export function PlanFastDialog({ dates, blockLabel, existingPlan, onConfirm, onRemove, onCancel }: PlanFastDialogProps) {
-  const [fastType, setFastType] = useState<FastType | null>(existingPlan?.fastType ?? null);
+export function PlanFastDialog({
+  dates,
+  blockLabel,
+  existingPlan,
+  initialFastType,
+  onConfirm,
+  onRemove,
+  onCancel,
+}: PlanFastDialogProps) {
+  const [step, setStep] = useState<"form" | "disclaimer">("form");
+  const [fastType, setFastType] = useState<FastType | null>(existingPlan?.fastType ?? initialFastType ?? null);
   const [hours, setHours] = useState(existingPlan?.plannedHours != null ? String(existingPlan.plannedHours) : "");
+  const [startTime, setStartTime] = useState(existingPlan?.startTime ?? "");
 
-  function handleSave() {
-    if (!fastType) return;
-    const parsedHours = hours.trim() === "" ? null : Number(hours);
-    onConfirm(fastType, parsedHours !== null && Number.isFinite(parsedHours) && parsedHours > 0 ? parsedHours : null);
+  const parsedHours = hours.trim() === "" ? null : Number(hours);
+  const validHours = parsedHours !== null && Number.isFinite(parsedHours) && parsedHours > 0;
+  const isLongFast = validHours && parsedHours! >= REFEED_THRESHOLD_HOURS;
+  // Saving several 20h+ fasts on consecutive days in one drag-range action would create
+  // back-to-back long fasts with no refeed between them — exactly what refeed blocking exists
+  // to prevent. A long fast can only be planned one day at a time.
+  const multiDayLongFastBlocked = isLongFast && dates.length > 1;
+  const canSave = !!fastType && startTime.trim() !== "" && validHours && !multiDayLongFastBlocked;
+
+  const endPreview =
+    dates.length === 1 && fastType && startTime.trim() !== "" && validHours
+      ? computeFastEnd(dates[0], startTime, parsedHours!)
+      : null;
+
+  function handleSaveClick() {
+    if (!canSave || !fastType) return;
+    if (fastType === "dry" && parsedHours! >= DRY_DISCLAIMER_THRESHOLD_HOURS) {
+      setStep("disclaimer");
+      return;
+    }
+    onConfirm(fastType, parsedHours!, startTime);
+  }
+
+  if (step === "disclaimer") {
+    return (
+      <DialogShell>
+        <DialogTitle>Extended dry fasting</DialogTitle>
+        <DialogBody>
+          Dry fasts of {DRY_DISCLAIMER_THRESHOLD_HOURS} hours or longer are for experienced fasters only. Make
+          sure you&apos;ve prepared properly beforehand, and follow proper refeeding guidelines afterward — your
+          body needs both to handle a fast this long safely.
+        </DialogBody>
+        <div className="mt-5 flex flex-col gap-2">
+          <PrimaryButton onClick={() => fastType && onConfirm(fastType, parsedHours!, startTime)}>
+            I understand, save plan
+          </PrimaryButton>
+          <CancelLink onClick={() => setStep("form")}>Back</CancelLink>
+        </div>
+      </DialogShell>
+    );
   }
 
   return (
@@ -83,22 +154,80 @@ export function PlanFastDialog({ dates, blockLabel, existingPlan, onConfirm, onR
       <label className="mt-4 flex items-center gap-2 rounded-lg border border-ivory/20 px-3 py-2">
         <FastClockIcon className="h-4 w-4 shrink-0 text-silver" />
         <input
+          type="time"
+          value={startTime}
+          onChange={(e) => setStartTime(e.target.value)}
+          className="w-full bg-transparent font-body text-sm text-ivory [color-scheme:dark] focus:outline-none"
+        />
+      </label>
+
+      <label className="mt-2 flex items-center gap-2 rounded-lg border border-ivory/20 px-3 py-2">
+        <FastClockIcon className="h-4 w-4 shrink-0 text-silver" />
+        <input
           type="number"
           min={1}
           max={72}
-          placeholder="Optional target hours"
+          placeholder="Target hours"
           value={hours}
           onChange={(e) => setHours(e.target.value)}
           className="w-full bg-transparent font-body text-sm text-ivory placeholder:text-silver/60 focus:outline-none"
         />
       </label>
 
+      {endPreview && (
+        <p className="mt-2 font-accent text-xs text-silver">
+          Ends {formatDateLabel(endPreview.endDate)} at {formatTimeLabel(endPreview.endTime)}
+        </p>
+      )}
+
+      {multiDayLongFastBlocked && (
+        <p className="mt-2 font-accent text-xs text-coral">
+          Fasts of {REFEED_THRESHOLD_HOURS}h or longer need their own refeed period afterward — plan one day at a
+          time for a fast this long.
+        </p>
+      )}
+
       <div className="mt-5 flex flex-col gap-2">
-        <PrimaryButton onClick={handleSave} disabled={!fastType}>
+        <PrimaryButton onClick={handleSaveClick} disabled={!canSave}>
           Save plan
         </PrimaryButton>
         {onRemove && <SecondaryButton onClick={onRemove}>Remove plan</SecondaryButton>}
         <CancelLink onClick={onCancel}>Cancel</CancelLink>
+      </div>
+    </DialogShell>
+  );
+}
+
+export interface RefeedInfoDialogProps {
+  date: ISODate;
+  info: RefeedDayInfo;
+  /** Only offered when info.sourceFastType is "dry" — the whole point of the exception. */
+  onPlanWaterFastException?: () => void;
+  onClose: () => void;
+}
+
+export function RefeedInfoDialog({ date, info, onPlanWaterFastException, onClose }: RefeedInfoDialogProps) {
+  const allowException = info.sourceFastType === "dry" && !!onPlanWaterFastException;
+
+  return (
+    <DialogShell>
+      <p className="font-accent text-xs uppercase tracking-wider text-gold">{formatDateLabel(date)}</p>
+      <div className="mt-1">
+        <DialogTitle>Refeed day</DialogTitle>
+      </div>
+      <DialogBody>
+        This day follows a {info.sourceFastType} fast of {REFEED_THRESHOLD_HOURS} hours or more, so it&apos;s set
+        aside for refeeding — reintroducing food gradually rather than jumping straight back to normal meals.
+        Start light (broth, soft fruit, small portions) and build back up over the next day or two. This block
+        runs through {formatDateLabel(info.refeedUntil)}.
+        {allowException &&
+          " Following a dry fast with a water fast is an exception to this block, if you'd like to plan one here."}
+      </DialogBody>
+      <div className="mt-5 flex flex-col gap-2">
+        {allowException && (
+          <SecondaryButton onClick={onPlanWaterFastException}>Plan a water fast here instead</SecondaryButton>
+        )}
+        <CancelLink onClick={onClose}>Close</CancelLink>
       </div>
     </DialogShell>
   );

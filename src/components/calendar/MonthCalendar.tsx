@@ -11,7 +11,16 @@ import {
   type Tier,
 } from "@/lib/calendar";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
-import { DryFastIcon, PHASE_ICONS, PausedMarkerIcon, PeriodForecastIcon, PeriodStartIcon, WaterFastIcon } from "./PhaseIcons";
+import type { RefeedDayInfo } from "@/lib/calendar/refeed";
+import {
+  DryFastIcon,
+  PHASE_ICONS,
+  PausedMarkerIcon,
+  PeriodForecastIcon,
+  PeriodStartIcon,
+  StopIcon,
+  WaterFastIcon,
+} from "./PhaseIcons";
 import { EkadashiSparkleIcon, FullMoonIcon, NewMoonIcon } from "./MoonIcons";
 
 const MOON_HIGHLIGHT_ICONS: Record<MoonHighlightType, (props: React.SVGProps<SVGSVGElement>) => React.JSX.Element> = {
@@ -127,6 +136,12 @@ export interface MonthCalendarProps {
   /** Called instead of planning, when a fasting-possible day is tapped directly but `onPlanFastRange`
    *  isn't wired (free tier) — shows a locked/upsell affordance rather than silently vanishing. */
   onLockedPlanClick?: (day: PhaseDayInfo) => void;
+  /** Days blocked for refeeding after a 20h+ fast (see src/lib/calendar/refeed.ts). These days
+   *  are excluded from direct tap/drag planning entirely — the stop-icon marker rendered on
+   *  them is the only entry point back into planning (via the dry→water exception dialog). */
+  refeedDays?: Record<ISODate, RefeedDayInfo>;
+  /** Click on a refeed day's stop-icon marker, to explain what refeeding means. */
+  onRefeedDayClick?: (date: ISODate) => void;
   /** The planId of the currently-live tracked fast, if any — its marker renders as a plain
    *  non-interactive indicator (the live timer supersedes manual logging while it's running). */
   activeFastPlanId?: string | null;
@@ -157,6 +172,8 @@ export function MonthCalendar({
   onEditPlan,
   onLogActualHours,
   onLockedPlanClick,
+  refeedDays,
+  onRefeedDayClick,
   activeFastPlanId,
   tier,
 }: MonthCalendarProps) {
@@ -249,12 +266,16 @@ export function MonthCalendar({
           const MoonIcon = moonHighlight ? MOON_HIGHLIGHT_ICONS[moonHighlight] : null;
 
           const existingPlan = fastPlanByDate.get(day.date);
+          const refeedInfo = !existingPlan ? refeedDays?.[day.date] : undefined;
           // A day is directly tappable/draggable to plan a fast the moment it's fasting-possible
           // and has no existing plan — no separate "arm this block first" step. Premium users get
           // the real drag-select flow; free-tier users get the upsell on the very first tap, which
-          // is more discoverable than the old badge-only entry point, not less.
-          const isPremiumPlannable = day.fastingPossible && !existingPlan && !!onPlanFastRange;
-          const isLockedPlannable = day.fastingPossible && !existingPlan && !onPlanFastRange && !!onLockedPlanClick;
+          // is more discoverable than the old badge-only entry point, not less. Refeed days are
+          // excluded outright — the only way back into planning one is the stop-icon marker's
+          // dry→water exception dialog, not a direct tap.
+          const isPremiumPlannable = day.fastingPossible && !existingPlan && !refeedInfo && !!onPlanFastRange;
+          const isLockedPlannable =
+            day.fastingPossible && !existingPlan && !refeedInfo && !onPlanFastRange && !!onLockedPlanClick;
           const isInteractiveCell = isPremiumPlannable || isLockedPlannable;
           const isPreviewCell = isPremiumPlannable && previewDates.has(day.date);
           const adHocLog = !existingPlan ? adHocLogByDate.get(day.date) : undefined;
@@ -397,6 +418,16 @@ export function MonthCalendar({
                     </span>
                   );
                 })()}
+              {!existingPlan && !adHocLog && refeedInfo && (
+                <button
+                  type="button"
+                  onClick={() => onRefeedDayClick?.(day.date)}
+                  aria-label={`Refeed day, following a ${refeedInfo.sourceFastType} fast — tap to learn more`}
+                  className="absolute bottom-1.5 right-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-obsidian ring-1 ring-coral/60 transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral"
+                >
+                  <StopIcon className="h-2.5 w-2.5 text-coral/80" />
+                </button>
+              )}
               <span className={`font-body text-sm ${isToday ? "font-semibold" : ""} text-ivory`}>
                 {dayNumber}
               </span>

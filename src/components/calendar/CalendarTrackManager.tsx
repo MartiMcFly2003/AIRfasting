@@ -44,7 +44,7 @@ const MOCK_CYCLE_LENGTH = 28;
 // has real data on first load. The Radiate block is left unplanned so the arm-and-plan flow is
 // testable fresh.
 const MOCK_FAST_PLANS: FastPlan[] = [
-  { id: "mock-plan-1", plannedDate: "2026-07-03", fastType: "water", plannedHours: 16 },
+  { id: "mock-plan-1", plannedDate: "2026-07-03", fastType: "water", plannedHours: 16, startTime: "18:00" },
 ];
 const MOCK_FAST_LOGS: FastLog[] = [
   {
@@ -54,6 +54,8 @@ const MOCK_FAST_LOGS: FastLog[] = [
     fastType: "water",
     plannedHours: 16,
     actualMinutes: 870,
+    startedAt: null,
+    endedAt: null,
   },
 ];
 
@@ -199,7 +201,8 @@ export function CalendarTrackManager({
     const finished = stopFast();
     if (!finished) return;
     const plan = finished.planId ? fastPlans.find((p) => p.id === finished.planId) : undefined;
-    const actualMinutes = Math.max(1, Math.round((Date.now() - new Date(finished.startedAt).getTime()) / 60000));
+    const endedAt = new Date();
+    const actualMinutes = Math.max(1, Math.round((endedAt.getTime() - new Date(finished.startedAt).getTime()) / 60000));
     const newLog: FastLog = {
       id: crypto.randomUUID(),
       planId: finished.planId,
@@ -207,6 +210,10 @@ export function CalendarTrackManager({
       fastType: finished.fastType,
       plannedHours: plan?.plannedHours ?? null,
       actualMinutes,
+      // Real start/end timestamps, not just a duration — lets computeRefeedDays block
+      // subsequent days from an actual long fast, whether or not it was pre-planned.
+      startedAt: finished.startedAt,
+      endedAt: endedAt.toISOString(),
     };
     setFastLogs([...fastLogs, newLog]);
     if (userId) void insertFastLog(userId, newLog).catch(reportSyncError);

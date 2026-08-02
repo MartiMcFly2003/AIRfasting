@@ -53,6 +53,9 @@ export async function GET(request: Request) {
         fastType: r.fast_type,
         plannedHours: r.planned_hours,
         actualMinutes: r.actual_minutes,
+        // Not selected above — computeTrialReminderStats has no use for real timestamps.
+        startedAt: null,
+        endedAt: null,
       }));
 
       const stats = computeTrialReminderStats(logs);
