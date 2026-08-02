@@ -115,16 +115,16 @@ export interface MonthCalendarProps {
   onUnpauseClick?: () => void;
   /** Earlier logged period dates shown as static, non-interactive markers — used by tracks (moon-sync) with no single "current" period to adjust. */
   additionalPeriodDates?: ISODate[];
-  /** Planned fasts (Premium planner) — only fasting-possible blocks (Rise/Radiate) can be armed for planning. */
+  /** Planned fasts (Premium planner) — only fasting-possible days (Rise/Radiate) are directly tappable/draggable to plan. */
   fastPlans?: FastPlan[];
   fastLogs?: FastLog[];
-  /** Committed click or drag-release within an armed block, on days with no existing plan. */
+  /** Tap or drag-release directly on fasting-possible days with no existing plan — no separate arming step. */
   onPlanFastRange?: (dates: ISODate[]) => void;
   /** Click on an existing plan whose date is still in the future. */
   onEditPlan?: (plan: FastPlan) => void;
   /** Click on an existing plan whose date is today or in the past. */
   onLogActualHours?: (plan: FastPlan) => void;
-  /** Called instead of arming, when a fasting-possible badge is clicked but `onPlanFastRange`
+  /** Called instead of planning, when a fasting-possible day is tapped directly but `onPlanFastRange`
    *  isn't wired (free tier) — shows a locked/upsell affordance rather than silently vanishing. */
   onLockedPlanClick?: (day: PhaseDayInfo) => void;
   /** The planId of the currently-live tracked fast, if any — its marker renders as a plain
@@ -160,7 +160,6 @@ export function MonthCalendar({
   activeFastPlanId,
   tier,
 }: MonthCalendarProps) {
-  const [armedBand, setArmedBand] = useState<{ block: PhaseBlockName; startDate: ISODate } | null>(null);
   const [dragAnchor, setDragAnchor] = useState<ISODate | null>(null);
   const [dragCurrent, setDragCurrent] = useState<ISODate | null>(null);
 
@@ -183,21 +182,6 @@ export function MonthCalendar({
     for (const log of fastLogs ?? []) if (!log.planId) map.set(log.loggedDate, log);
     return map;
   }, [fastLogs]);
-
-  // All dates in the currently-viewed month belonging to the armed contiguous band. A block
-  // that starts in the previous month can't be armed from here — same limitation as the
-  // existing block-start badge, which also only renders on the first day of a visible band.
-  const armedDates = useMemo(() => {
-    const set = new Set<ISODate>();
-    if (!armedBand) return set;
-    const startIndex = days.findIndex((d) => d.date === armedBand.startDate);
-    if (startIndex === -1) return set;
-    for (let i = startIndex; i < days.length; i++) {
-      if (days[i].block !== armedBand.block) break;
-      set.add(days[i].date);
-    }
-    return set;
-  }, [armedBand, days]);
 
   const previewDates = useMemo(() => {
     if (!dragAnchor || !dragCurrent) return new Set<ISODate>();
@@ -222,14 +206,6 @@ export function MonthCalendar({
     return () => window.removeEventListener("pointerup", handlePointerUp);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragAnchor, dragCurrent]);
-
-  function handleBadgeClick(day: PhaseDayInfo) {
-    setDragAnchor(null);
-    setDragCurrent(null);
-    setArmedBand((current) =>
-      current?.startDate === day.date ? null : { block: day.block, startDate: day.date },
-    );
-  }
 
   const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
   const jsWeekday = firstOfMonth.getUTCDay(); // 0 = Sunday
@@ -272,60 +248,43 @@ export function MonthCalendar({
           const moonHighlight = moonHighlights?.[day.date];
           const MoonIcon = moonHighlight ? MOON_HIGHLIGHT_ICONS[moonHighlight] : null;
 
-          const isArmedBadge = armedBand?.startDate === day.date;
-          const canArmBadge = day.fastingPossible && !!onPlanFastRange;
-          const isLockedBadge = day.fastingPossible && !onPlanFastRange && !!onLockedPlanClick;
           const existingPlan = fastPlanByDate.get(day.date);
-          const isArmedCell = armedDates.has(day.date) && !existingPlan;
-          const isPreviewCell = isArmedCell && previewDates.has(day.date);
+          // A day is directly tappable/draggable to plan a fast the moment it's fasting-possible
+          // and has no existing plan — no separate "arm this block first" step. Premium users get
+          // the real drag-select flow; free-tier users get the upsell on the very first tap, which
+          // is more discoverable than the old badge-only entry point, not less.
+          const isPremiumPlannable = day.fastingPossible && !existingPlan && !!onPlanFastRange;
+          const isLockedPlannable = day.fastingPossible && !existingPlan && !onPlanFastRange && !!onLockedPlanClick;
+          const isInteractiveCell = isPremiumPlannable || isLockedPlannable;
+          const isPreviewCell = isPremiumPlannable && previewDates.has(day.date);
           const adHocLog = !existingPlan ? adHocLogByDate.get(day.date) : undefined;
 
           return (
             <div
               key={day.date}
               onPointerDown={
-                isArmedCell
+                isPremiumPlannable
                   ? () => {
                       setDragAnchor(day.date);
                       setDragCurrent(day.date);
                     }
-                  : undefined
+                  : isLockedPlannable
+                    ? () => onLockedPlanClick?.(day)
+                    : undefined
               }
-              onPointerEnter={isArmedCell && dragAnchor ? () => setDragCurrent(day.date) : undefined}
-              style={isArmedCell ? { touchAction: "none" } : undefined}
+              onPointerEnter={isPremiumPlannable && dragAnchor ? () => setDragCurrent(day.date) : undefined}
+              style={isInteractiveCell ? { touchAction: "none" } : undefined}
               className={`relative aspect-square rounded-xl border-t-2 ${isToday ? style.todayBg : style.bg} ${style.border} flex items-center justify-center transition-colors ${
-                isArmedCell ? "cursor-pointer select-none" : ""
+                isInteractiveCell ? "cursor-pointer select-none" : ""
               } ${isPreviewCell ? "outline outline-2 outline-ivory/60" : ""}`}
             >
-              {isBlockStart &&
-                (canArmBadge ? (
-                  <button
-                    type="button"
-                    onClick={() => handleBadgeClick(day)}
-                    aria-pressed={isArmedBadge}
-                    aria-label={`${isArmedBadge ? "Stop planning" : "Plan"} fasting days in this ${style.label} block`}
-                    className={`absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ivory ${
-                      isArmedBadge ? style.solidBg : `bg-obsidian ring-1 ${style.border}`
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 ${isArmedBadge ? "text-obsidian" : style.text}`} strokeWidth={2} />
-                  </button>
-                ) : isLockedBadge ? (
-                  <button
-                    type="button"
-                    onClick={() => onLockedPlanClick?.(day)}
-                    aria-label={`Plan fasting days in this ${style.label} block — Premium feature`}
-                    className={`absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-obsidian opacity-60 ring-1 ${style.border} transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ivory`}
-                  >
-                    <Icon className={`h-4 w-4 ${style.text}`} strokeWidth={2} />
-                  </button>
-                ) : (
-                  <span
-                    className={`absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-obsidian ring-1 ${style.border}`}
-                  >
-                    <Icon className={`h-4 w-4 ${style.text}`} strokeWidth={2} />
-                  </span>
-                ))}
+              {isBlockStart && (
+                <span
+                  className={`absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-obsidian ring-1 ${style.border}`}
+                >
+                  <Icon className={`h-4 w-4 ${style.text}`} strokeWidth={2} />
+                </span>
+              )}
               {MoonIcon && moonHighlight && (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
                   {onMoonHighlightClick ? (
