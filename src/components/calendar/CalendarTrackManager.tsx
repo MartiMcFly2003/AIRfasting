@@ -32,6 +32,7 @@ import { FastAnalysisPanel, FastPlanSummaryPanel } from "./FastPlanningPanels";
 import { LiveFastTracker } from "./LiveFastTracker";
 import { MoonSyncCalendarView } from "./MoonSyncCalendarView";
 import { IrregularPeriodDialog, PauseStatusStrip, UnpauseDialog, type PauseReason } from "./PauseDialogs";
+import { DateEntryDialog } from "./PeriodLogDialogs";
 import { RegularDetectedBanner } from "./RegularDetectedBanner";
 import { WeeklyRhythmCalendarView } from "./WeeklyRhythmCalendarView";
 
@@ -131,6 +132,7 @@ export function CalendarTrackManager({
   const [regularBannerDismissed, setRegularBannerDismissed] = useState(false);
   const [irregularDialogDismissed, setIrregularDialogDismissed] = useState(false);
   const [showUnpauseDialog, setShowUnpauseDialog] = useState(false);
+  const [showLogHistoricDialog, setShowLogHistoricDialog] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const { activeFast, start: startFast, stop: stopFast, elapsedMs } = useActiveFast();
 
@@ -147,13 +149,23 @@ export function CalendarTrackManager({
     if (userId) void saveTrack(userId, next).catch(reportSyncError);
   }
 
-  function handlePeriodHistoryChange(next: ISODate[]) {
+  function handlePeriodHistoryChange(nextUnsorted: ISODate[]) {
+    // Every write funnels through here, so sorting/deduping once centrally keeps periodHistory's
+    // ascending-oldest-to-newest invariant intact regardless of caller — including a historic
+    // entry inserted out of order via handleConfirmHistoricPeriod below. ISO date strings
+    // ("YYYY-MM-DD") sort correctly with a plain string sort.
+    const next = [...new Set(nextUnsorted)].sort();
     if (userId) void syncPeriodHistory(userId, periodHistory, next).catch(reportSyncError);
     setPeriodHistory(next);
     // New data invalidates any earlier dismissal — a fresh log can change the regularity
     // assessment, so both prompts get another chance to evaluate the new state.
     setRegularBannerDismissed(false);
     setIrregularDialogDismissed(false);
+  }
+
+  function handleConfirmHistoricPeriod(date: ISODate) {
+    handlePeriodHistoryChange([...periodHistory, date]);
+    setShowLogHistoricDialog(false);
   }
 
   function handleCycleLengthChange(next: number) {
@@ -345,7 +357,12 @@ export function CalendarTrackManager({
         />
       )}
 
-      {(protocol === "protocol1" || protocol === "protocol2") && <CycleHistoryPanel periodHistory={periodHistory} />}
+      {(protocol === "protocol1" || protocol === "protocol2") && (
+        <CycleHistoryPanel
+          periodHistory={periodHistory}
+          onLogHistoric={() => setShowLogHistoricDialog(true)}
+        />
+      )}
 
       <FastPlanSummaryPanel plans={getPlansForMonth(fastPlans, viewedMonth)} monthLabel={monthLabel} />
       <FastAnalysisPanel plans={fastPlans} logs={fastLogs} />
@@ -363,6 +380,19 @@ export function CalendarTrackManager({
           onChooseRegular={handleUnpauseRegular}
           onChoosePerimenopause={handleUnpausePerimenopause}
           onCancel={() => setShowUnpauseDialog(false)}
+        />
+      )}
+
+      {showLogHistoricDialog && (
+        <DateEntryDialog
+          title="Log a past period"
+          description="Add a period start date you missed logging earlier this year."
+          initialDate={todayAsISODate()}
+          min={`${new Date().getUTCFullYear()}-01-01`}
+          max={todayAsISODate()}
+          confirmLabel="Add to history"
+          onConfirm={handleConfirmHistoricPeriod}
+          onCancel={() => setShowLogHistoricDialog(false)}
         />
       )}
     </>

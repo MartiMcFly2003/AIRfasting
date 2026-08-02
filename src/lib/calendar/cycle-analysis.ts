@@ -56,3 +56,10 @@ export function getAverageOfLastNCycles(periodHistory: ISODate[], n = 3): number
   const lastN = lengths.slice(-n);
   return Math.round(lastN.reduce((sum, x) => sum + x, 0) / n);
 }
+
+/** Average of every logged cycle gap (all-time, not a recent window) — null until at least two periods are logged. */
+export function getAverageCycleLength(periodHistory: ISODate[]): number | null {
+  const lengths = getCycleLengths(periodHistory);
+  if (lengths.length === 0) return null;
+  return Math.round(lengths.reduce((sum, n) => sum + n, 0) / lengths.length);
+}
