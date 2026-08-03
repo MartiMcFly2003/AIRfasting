@@ -32,6 +32,7 @@ import { CalendarView } from "./CalendarView";
 import { CycleHistoryPanel } from "./CycleHistoryPanel";
 import { FastAnalysisPanel, FastPlanSummaryPanel } from "./FastPlanningPanels";
 import { LiveFastTracker } from "./LiveFastTracker";
+import { ChangeRhythmDialog, type FastingRhythmOption } from "./ChangeRhythmDialog";
 import { MoonSyncCalendarView } from "./MoonSyncCalendarView";
 import { IrregularPeriodDialog, PauseStatusStrip, UnpauseDialog, type PauseReason } from "./PauseDialogs";
 import { DateEntryDialog, MonthEntryDialog } from "./PeriodLogDialogs";
@@ -145,6 +146,7 @@ export function CalendarTrackManager({
   const [showUnpauseDialog, setShowUnpauseDialog] = useState(false);
   const [showLogHistoricDialog, setShowLogHistoricDialog] = useState(false);
   const [showLogNoPeriodDialog, setShowLogNoPeriodDialog] = useState(false);
+  const [showChangeRhythmDialog, setShowChangeRhythmDialog] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   // Dismissing the prep/refeed nudge only silences it for the current day — it naturally
   // reappears once todayISO advances, with no extra persistence needed.
@@ -293,6 +295,17 @@ export function CalendarTrackManager({
     if (userId) void savePauseState(userId, { reason }).catch(reportSyncError);
   }
 
+  function handleChooseRhythm(next: FastingRhythmOption) {
+    changeTrack(next);
+    // A deliberate manual switch supersedes an automatic pause the same way the dedicated
+    // unpause flows already do — otherwise a stale "Fasting paused" strip could linger on a
+    // track its detection logic no longer even runs against.
+    setPause(null);
+    setIrregularDialogDismissed(false);
+    setShowChangeRhythmDialog(false);
+    if (userId) void savePauseState(userId, null).catch(reportSyncError);
+  }
+
   function handleSwitchToMoonSyncFromIrregular() {
     changeTrack("moon_sync");
     setPause(null);
@@ -431,6 +444,14 @@ export function CalendarTrackManager({
         />
       )}
 
+      <button
+        type="button"
+        onClick={() => setShowChangeRhythmDialog(true)}
+        className="font-accent text-xs text-silver hover:text-ivory hover:underline"
+      >
+        Change fasting rhythm
+      </button>
+
       <FastPlanSummaryPanel plans={getPlansForMonth(fastPlans, viewedMonth)} monthLabel={monthLabel} />
       <FastAnalysisPanel plans={fastPlans} logs={fastLogs} />
 
@@ -474,6 +495,14 @@ export function CalendarTrackManager({
           onConfirm={handleConfirmNoPeriodMonth}
           onCancel={() => setShowLogNoPeriodDialog(false)}
           isMonthTaken={isMonthTaken}
+        />
+      )}
+
+      {showChangeRhythmDialog && (
+        <ChangeRhythmDialog
+          currentTrack={track}
+          onChoose={handleChooseRhythm}
+          onCancel={() => setShowChangeRhythmDialog(false)}
         />
       )}
     </>
