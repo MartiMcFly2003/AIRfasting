@@ -51,19 +51,19 @@ export function MonthNav({ current, monthLabel, isCurrentMonth, isForecasted }: 
   const next = addMonths(current, 1);
 
   return (
-    <div className="flex flex-col items-center gap-1 text-center">
-      <div className="flex items-center gap-5">
+    <div className="flex w-full max-w-xl flex-col items-center gap-1 text-center">
+      <div className="flex w-full items-center justify-between gap-2">
         <Link
           href={monthHref(prev)}
           aria-label="Previous month"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-silver transition-colors hover:bg-ivory/10 hover:text-ivory"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-silver transition-colors hover:bg-ivory/10 hover:text-ivory"
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <div className="flex items-center gap-3">
-          <h1 className="whitespace-nowrap font-heading text-4xl tracking-wide text-ivory">{monthLabel}</h1>
+        <div className="flex min-w-0 flex-col items-center gap-1 sm:flex-row sm:gap-3">
+          <h1 className="truncate font-heading text-2xl tracking-wide text-ivory sm:text-4xl">{monthLabel}</h1>
           {isForecasted && (
-            <span className="whitespace-nowrap rounded-full border border-dashed border-gold/60 px-2.5 py-1 font-accent text-[10px] uppercase tracking-wider text-gold">
+            <span className="shrink-0 whitespace-nowrap rounded-full border border-dashed border-gold/60 px-2.5 py-1 font-accent text-[10px] uppercase tracking-wider text-gold">
               Forecasted
             </span>
           )}
@@ -71,7 +71,7 @@ export function MonthNav({ current, monthLabel, isCurrentMonth, isForecasted }: 
         <Link
           href={monthHref(next)}
           aria-label="Next month"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-silver transition-colors hover:bg-ivory/10 hover:text-ivory"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-silver transition-colors hover:bg-ivory/10 hover:text-ivory"
         >
           <ChevronRight className="h-5 w-5" />
         </Link>
