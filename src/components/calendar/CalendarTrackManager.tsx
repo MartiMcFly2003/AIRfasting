@@ -16,7 +16,12 @@ import {
   type WeeklyRhythmSelection,
   type YearMonth,
 } from "@/lib/calendar";
-import { detectLatePeriod, detectRegularity, getCycleLengths } from "@/lib/calendar/cycle-analysis";
+import {
+  detectLatePeriod,
+  detectRegularity,
+  getAverageOfLastNCycles,
+  getCycleLengths,
+} from "@/lib/calendar/cycle-analysis";
 import { getPlansForMonth, type FastLog, type FastPlan } from "@/lib/calendar/fast-plans";
 import { insertFastLog } from "@/lib/calendar/persistence/fast-logs";
 import { syncNoPeriodMonths } from "@/lib/calendar/persistence/no-period-months";
@@ -222,7 +227,15 @@ export function CalendarTrackManager({
   const periodStartDate = periodHistory[periodHistory.length - 1] as ISODate | undefined;
   const cycleLengths = getCycleLengths(periodHistory);
   const regularity = detectRegularity(cycleLengths);
-  const isLate = periodStartDate ? detectLatePeriod(periodStartDate, cycleLength, todayAsISODate()) : false;
+  // Cycling women's forecast is always the average of the last 3 registered (non-zero) cycles
+  // once that many exist — supersedes cycleLength (the raw, manually-adjustable state) rather
+  // than requiring a dialog choice each time. Before 3 real cycles are on record, cycleLength
+  // (onboarding's self-reported value, or the deviation dialog's earlier picks) is still the
+  // only data available, so it remains the fallback.
+  const forecastedCycleLength = getAverageOfLastNCycles(periodHistory, 3) ?? cycleLength;
+  const isLate = periodStartDate
+    ? detectLatePeriod(periodStartDate, forecastedCycleLength, todayAsISODate())
+    : false;
 
   const showRegularBanner = protocol === "protocol2" && regularity.status === "regular" && !regularBannerDismissed;
 
@@ -239,7 +252,7 @@ export function CalendarTrackManager({
     if (protocol === "protocol1" && periodStartDate) {
       todayFastingPossible = getPhaseDayInfo(todayISO, "menstrual", {
         cycleStartDate: periodStartDate,
-        cycleLength,
+        cycleLength: forecastedCycleLength,
       }).fastingPossible;
     } else if (protocol === "protocol2") {
       todayFastingPossible = getPhaseDayInfo(todayISO, "moon_sync").fastingPossible;
@@ -378,7 +391,7 @@ export function CalendarTrackManager({
           todayISO={todayISO}
           moonHighlights={moonHighlights}
           periodHistory={periodHistory}
-          cycleLength={cycleLength}
+          cycleLength={forecastedCycleLength}
           onPeriodHistoryChange={handlePeriodHistoryChange}
           onCycleLengthChange={handleCycleLengthChange}
           isPaused={pause !== null}

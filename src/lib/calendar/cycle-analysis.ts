@@ -49,9 +49,11 @@ export function detectLatePeriod(lastPeriodDate: ISODate, cycleLength: number, t
   return daysBetween(lastPeriodDate, today) - cycleLength > LATE_PERIOD_THRESHOLD_DAYS;
 }
 
-/** Average of the last `n` cycle gaps, or null when fewer than `n` gaps exist yet. */
+/** Average of the last `n` cycle gaps with a registered (non-zero) duration, or null when
+ *  fewer than `n` such gaps exist yet. A zero-length gap isn't a real cycle — excluding it
+ *  keeps it from both skewing the sum and occupying one of the `n` slots. */
 export function getAverageOfLastNCycles(periodHistory: ISODate[], n = 3): number | null {
-  const lengths = getCycleLengths(periodHistory);
+  const lengths = getCycleLengths(periodHistory).filter((len) => len > 0);
   if (lengths.length < n) return null;
   const lastN = lengths.slice(-n);
   return Math.round(lastN.reduce((sum, x) => sum + x, 0) / n);
