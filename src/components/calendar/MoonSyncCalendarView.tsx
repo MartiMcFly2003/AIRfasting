@@ -22,6 +22,7 @@ import { useFastPlanCrud } from "@/lib/calendar/use-fast-plan-crud";
 import { FastContinuationDialog, LogActualHoursDialog, PlanFastDialog, RefeedInfoDialog } from "./FastPlanDialogs";
 import { MonthCalendar, PhaseLegend, PHASE_LABELS } from "./MonthCalendar";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
+import { MoonSyncInstructions } from "./MoonSyncInstructions";
 import { DateEntryDialog } from "./PeriodLogDialogs";
 import { PhaseFoodTipPanel } from "./PhaseFoodTipPanel";
 import { PremiumUpsellDialog } from "./PremiumUpsellDialog";
@@ -210,6 +211,8 @@ export function MoonSyncCalendarView({
 
   return (
     <>
+      <MoonSyncInstructions />
+
       <MonthCalendar
         year={viewedMonth.year}
         month={viewedMonth.month}
