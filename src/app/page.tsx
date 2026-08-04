@@ -5,23 +5,9 @@ export default function Home() {
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
       <h1 className="font-heading text-5xl tracking-wide text-ivory">AIRfasting</h1>
       <p className="max-w-md font-body text-lg text-silver">
-        A cycle-aware fasting calendar. Project scaffold is live &mdash; design
-        system, environment, and integrations are being wired up next.
+        A cycle-aware fasting calendar &mdash; plan fasting days around your
+        body&rsquo;s rhythm, whatever stage of life you&rsquo;re in.
       </p>
-      <div className="flex gap-3 pt-4">
-        <span className="rounded-full bg-phase-inhale px-4 py-1 text-sm text-obsidian">
-          Rise
-        </span>
-        <span className="rounded-full bg-phase-bloom px-4 py-1 text-sm text-obsidian">
-          Bloom
-        </span>
-        <span className="rounded-full bg-phase-radiate px-4 py-1 text-sm text-obsidian">
-          Radiate
-        </span>
-        <span className="rounded-full bg-phase-exhale px-4 py-1 text-sm text-obsidian">
-          Rest
-        </span>
-      </div>
       <div className="flex gap-4 pt-6">
         <Link
           href="/sign-up"
