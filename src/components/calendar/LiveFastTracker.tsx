@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ActiveFast } from "@/lib/calendar/use-active-fast";
 import type { FastPlan, FastType } from "@/lib/calendar/fast-plans";
-import { StartFastDialog } from "./FastPlanDialogs";
+import { formatTimeLabel, StartFastDialog } from "./FastPlanDialogs";
 import { DryFastIcon, WaterFastIcon } from "./PhaseIcons";
 
 function formatElapsed(ms: number): string {
@@ -15,7 +15,6 @@ function formatElapsed(ms: number): string {
 }
 
 export interface LiveFastTrackerProps {
-  todayFastingPossible: boolean;
   activeFast: ActiveFast | null;
   elapsedMs: number;
   todaysPlan?: FastPlan;
@@ -26,7 +25,6 @@ export interface LiveFastTrackerProps {
 }
 
 export function LiveFastTracker({
-  todayFastingPossible,
   activeFast,
   elapsedMs,
   todaysPlan,
@@ -57,7 +55,30 @@ export function LiveFastTracker({
     );
   }
 
-  if (!todayFastingPossible) return null;
+  // A day with a plan already specifies its fast type/start time, so starting it needs no
+  // picker — one tap begins tracking against that plan directly.
+  if (todaysPlan) {
+    const Icon = todaysPlan.fastType === "water" ? WaterFastIcon : DryFastIcon;
+    return (
+      <div className="flex w-full max-w-xl items-center justify-between gap-3 rounded-xl border border-ivory/20 px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <Icon className="h-4 w-4 shrink-0 text-ivory" />
+          <span className="font-body text-sm text-ivory">
+            {todaysPlan.startTime
+              ? `You have a fast planned, starting today at ${formatTimeLabel(todaysPlan.startTime)}`
+              : "You have a fast planned for today"}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onStart(todaysPlan.fastType, todaysPlan.id)}
+          className="shrink-0 rounded-full bg-ivory px-4 py-1.5 font-accent text-xs font-medium text-obsidian transition-opacity hover:opacity-90"
+        >
+          Start fast
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -71,11 +92,9 @@ export function LiveFastTracker({
 
       {dialogOpen && (
         <StartFastDialog
-          initialFastType={todaysPlan?.fastType}
-          linkedPlanLabel={todaysPlan ? "today's planned fast" : undefined}
           durationTip={durationTip}
           onConfirm={(fastType) => {
-            onStart(fastType, todaysPlan?.id ?? null);
+            onStart(fastType, null);
             setDialogOpen(false);
           }}
           onCancel={() => setDialogOpen(false)}

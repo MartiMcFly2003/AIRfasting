@@ -6,9 +6,6 @@ import {
   TRACK_PROTOCOL,
   FIXED_WEEKLY_RHYTHM_PATTERNS,
   addDays,
-  getPhaseDayInfo,
-  getWeeklyRhythmDayLabel,
-  getWeeklyRhythmSchedule,
   type ISODate,
   type MoonHighlightType,
   type Tier,
@@ -247,21 +244,6 @@ export function CalendarTrackManager({
 
   const todaysPlan = todayISO ? fastPlans.find((p) => p.plannedDate === todayISO) : undefined;
 
-  let todayFastingPossible = false;
-  if (todayISO) {
-    if (protocol === "protocol1" && periodStartDate) {
-      todayFastingPossible = getPhaseDayInfo(todayISO, "menstrual", {
-        cycleStartDate: periodStartDate,
-        cycleLength: forecastedCycleLength,
-      }).fastingPossible;
-    } else if (protocol === "protocol2") {
-      todayFastingPossible = getPhaseDayInfo(todayISO, "moon_sync").fastingPossible;
-    } else if (protocol === "protocol3") {
-      const label = getWeeklyRhythmDayLabel(todayISO, getWeeklyRhythmSchedule(weeklyRhythmSelection));
-      todayFastingPossible = label === "fasting" || label === "deep_fasting";
-    }
-  }
-
   // Purely informational — unrelated to the RefeedInfoDialog/computeRefeedDays blocking
   // mechanism, which only ever fires for 20h+ fasts. This nudge fires after any fast at all.
   let showPrepNudge = false;
@@ -376,7 +358,6 @@ export function CalendarTrackManager({
       )}
 
       <LiveFastTracker
-        todayFastingPossible={todayFastingPossible}
         activeFast={activeFast}
         elapsedMs={elapsedMs}
         todaysPlan={todaysPlan}
