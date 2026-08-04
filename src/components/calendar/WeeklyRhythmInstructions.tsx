@@ -5,15 +5,17 @@ import type { WeeklyRhythm } from "@/lib/calendar";
 const RHYTHM_COPY: Record<WeeklyRhythm, string[]> = {
   "5-1-1": [
     "There's no menstrual or lunar cycle behind this rhythm — you set it yourself, one week at a time.",
-    "Tap any day below to plan your deep fast: choose the type, start time and length that suit you. That day becomes your deep-fast day for the week.",
-    "The day right after fills in automatically as a nourish day — food, not fasting.",
-    "The remaining 5 days become support days: gentle, lower-carb eating. A short overnight fast is fine on these; save the longer fast for your deep-fast day.",
+    "5-1-1 means one deep-fast day each week, followed by a nourish day, with the remaining 5 days gently supporting it.",
+    "For any week you'd like to fast, start by choosing which day should be your deep fast: tap it and set the type, start time and length.",
+    "The rest of that week fills in on its own — the day right after becomes your nourish day, the other 5 become support days.",
+    "It's entirely your choice which weeks you follow this rhythm in — every week, or only the ones you pick.",
   ],
   "4-2-1": [
     "There's no menstrual or lunar cycle behind this rhythm — you set it yourself, one week at a time.",
-    "Tap any day below to plan your first deep fast: choose the type, start time and length that suit you. That sets your deep-fasting stretch for the week.",
-    "The day right after that stretch fills in automatically as a nourish day — food, not fasting.",
-    "The remaining 4 days become support days: gentle, lower-carb eating. A short overnight fast is fine on these; save the longer fasts for your deep-fasting days.",
+    "4-2-1 means two deep-fast days each week, back-to-back, followed by a nourish day, with the remaining 4 days gently supporting them.",
+    "For any week you'd like to fast, start by choosing which day begins your deep-fasting stretch: tap it and set the type, start time and length.",
+    "The rest of that week fills in on its own — the day right after your stretch becomes your nourish day, the other 4 become support days.",
+    "It's entirely your choice which weeks you follow this rhythm in — every week, or only the ones you pick.",
   ],
 };
 
