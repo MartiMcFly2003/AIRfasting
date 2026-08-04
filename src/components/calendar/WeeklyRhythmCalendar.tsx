@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import {
+  addDays,
   getWeeklyRhythmDayLabel,
   isoWeekday,
   type ISODate,
   type IsoWeekday,
   type MoonHighlightType,
-  type PhaseBlockName,
   type Tier,
   type WeeklyDayLabel,
 } from "@/lib/calendar";
@@ -15,7 +14,7 @@ import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
 import type { FastOccupiedInfo, RefeedDayInfo } from "@/lib/calendar/refeed";
 import { FAST_MARKER_STYLE } from "./MonthCalendar";
 import { EkadashiSparkleIcon, FullMoonIcon, NewMoonIcon } from "./MoonIcons";
-import { PHASE_ICONS, StopIcon } from "./PhaseIcons";
+import { StopIcon } from "./PhaseIcons";
 
 const MOON_HIGHLIGHT_ICONS: Record<MoonHighlightType, (props: React.SVGProps<SVGSVGElement>) => React.JSX.Element> = {
   new_moon: NewMoonIcon,
@@ -30,43 +29,39 @@ const MOON_HIGHLIGHT_LABELS: Record<MoonHighlightType, string> = {
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-/** No "Bloom" in Protocol 3 — only Rise/Radiate/Rest. */
-const LABEL_TO_PHASE_ICON: Record<Exclude<WeeklyDayLabel, "unplanned">, PhaseBlockName> = {
-  fasting: "inhale",
-  deep_fasting: "radiate",
-  rest: "exhale",
-};
-
+/** No menstrual/lunar phase behind this protocol, so these reuse the app's general accent
+ *  tokens (coral/silver/gold) rather than the cycle-phase colours — deliberately a different
+ *  palette from Protocols 1/2's Rise/Bloom/Radiate/Rest. */
 const DAY_STYLES: Record<
   WeeklyDayLabel,
   { bg: string; todayBg: string; border: string; text: string; solidBg: string; glow: string; label: string }
 > = {
   fasting: {
-    bg: "bg-phase-inhale/15",
-    todayBg: "bg-phase-inhale/45",
-    border: "border-phase-inhale",
-    text: "text-phase-inhale",
-    solidBg: "bg-phase-inhale",
-    glow: "shadow-[0_0_10px_var(--color-phase-inhale)]",
-    label: "Rise",
+    bg: "bg-gold/15",
+    todayBg: "bg-gold/45",
+    border: "border-gold",
+    text: "text-gold",
+    solidBg: "bg-gold",
+    glow: "shadow-[0_0_10px_var(--color-gold)]",
+    label: "Support",
   },
   deep_fasting: {
-    bg: "bg-phase-radiate/15",
-    todayBg: "bg-phase-radiate/45",
-    border: "border-phase-radiate",
-    text: "text-phase-radiate",
-    solidBg: "bg-phase-radiate",
-    glow: "shadow-[0_0_10px_var(--color-phase-radiate)]",
-    label: "Radiate",
+    bg: "bg-coral/15",
+    todayBg: "bg-coral/45",
+    border: "border-coral",
+    text: "text-coral",
+    solidBg: "bg-coral",
+    glow: "shadow-[0_0_10px_var(--color-coral)]",
+    label: "Deep fast",
   },
   rest: {
-    bg: "bg-phase-exhale/15",
-    todayBg: "bg-phase-exhale/45",
-    border: "border-phase-exhale",
-    text: "text-phase-exhale",
-    solidBg: "bg-phase-exhale",
-    glow: "shadow-[0_0_10px_var(--color-phase-exhale)]",
-    label: "Rest",
+    bg: "bg-silver/15",
+    todayBg: "bg-silver/45",
+    border: "border-silver",
+    text: "text-silver",
+    solidBg: "bg-silver",
+    glow: "shadow-[0_0_10px_var(--color-silver)]",
+    label: "Nourish",
   },
   unplanned: {
     bg: "bg-ivory/5",
@@ -79,6 +74,11 @@ const DAY_STYLES: Record<
   },
 };
 
+/** Plain style used for every day of a week that hasn't had its deep-fast day defined yet —
+ *  matches DAY_STYLES.unplanned regardless of what the underlying schedule would label the
+ *  day, since nothing should read as "decided" until the person actually plans something. */
+const PLAIN_STYLE = DAY_STYLES.unplanned;
+
 export interface WeeklyRhythmCalendarProps {
   year: number;
   /** 1-12 */
@@ -90,17 +90,17 @@ export interface WeeklyRhythmCalendarProps {
   onMoonHighlightClick?: (date: ISODate, type: MoonHighlightType) => void;
   fastPlans?: FastPlan[];
   fastLogs?: FastLog[];
-  /** Committed icon-move, premium only — undefined on free tier. */
-  onMoveRadiateDay?: (fromDay: IsoWeekday, toDay: IsoWeekday) => void;
-  /** Click on a Radiate day with no existing plan, premium only — undefined on free tier. */
-  onPlanRadiateDay?: (date: ISODate) => void;
+  /** Click on any day in a week whose deep-fast day hasn't been defined yet, premium only —
+   *  undefined on free tier. Confirming reassigns the weekly pattern to that weekday. */
+  onDefineDeepFastDay?: (date: ISODate) => void;
+  /** Click on a non-deep-fast day within an already-defined week, premium only — plans a
+   *  regular (shorter) fast there without touching the pattern. */
+  onPlanSupportFast?: (date: ISODate) => void;
   onEditPlan?: (plan: FastPlan) => void;
   onLogActualHours?: (plan: FastPlan) => void;
-  /** Free tier — shown instead of arming/planning when the gated callbacks above are absent. */
+  /** Free tier — shown instead of defining/planning when the gated callbacks above are absent. */
   onLockedInteraction?: () => void;
-  /** Days blocked for refeeding after a 20h+ fast (see src/lib/calendar/refeed.ts). Excluded
-   *  from onPlanRadiateDay entirely — the stop-icon marker is the only way back into planning
-   *  (via the dry→water exception). */
+  /** Days blocked for refeeding after a 20h+ fast (see src/lib/calendar/refeed.ts). */
   refeedDays?: Record<ISODate, RefeedDayInfo>;
   onRefeedDayClick?: (date: ISODate) => void;
   /** Days still occupied by an earlier fast's tail — a date already in refeedDays (the source
@@ -123,8 +123,8 @@ export function WeeklyRhythmCalendar({
   onMoonHighlightClick,
   fastPlans,
   fastLogs,
-  onMoveRadiateDay,
-  onPlanRadiateDay,
+  onDefineDeepFastDay,
+  onPlanSupportFast,
   onEditPlan,
   onLogActualHours,
   onLockedInteraction,
@@ -135,8 +135,6 @@ export function WeeklyRhythmCalendar({
   activeFastPlanId,
   tier,
 }: WeeklyRhythmCalendarProps) {
-  const [armedRadiateDay, setArmedRadiateDay] = useState<IsoWeekday | null>(null);
-
   const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
   const jsWeekday = firstOfMonth.getUTCDay();
   const leadingBlanks = jsWeekday === 0 ? 6 : jsWeekday - 1;
@@ -151,26 +149,33 @@ export function WeeklyRhythmCalendar({
   const adHocLogByDate = new Map<ISODate, FastLog>();
   for (const log of fastLogs ?? []) if (!log.planId) adHocLogByDate.set(log.loggedDate, log);
 
-  function handleRadiateBadgeClick(weekday: IsoWeekday) {
-    if (!onMoveRadiateDay) {
-      onLockedInteraction?.();
-      return;
-    }
-    setArmedRadiateDay((current) => (current === weekday ? null : weekday));
+  const deepFastWeekdays: IsoWeekday[] = schedule
+    ? ([1, 2, 3, 4, 5, 6, 7] as IsoWeekday[]).filter((d) => schedule[d] === "deep_fasting")
+    : [];
+
+  /** A week only reads as "decided" once its own deep-fast day actually has a plan — the
+   *  underlying weekly pattern can already point at a weekday, but that alone shouldn't paint
+   *  a week nobody has committed to yet. */
+  function isWeekCommitted(date: ISODate): boolean {
+    if (!schedule || deepFastWeekdays.length === 0) return false;
+    const monday = addDays(date, -(isoWeekday(date) - 1));
+    return deepFastWeekdays.some((weekday) => fastPlanByDate.has(addDays(monday, weekday - 1)));
   }
 
   function handleCellBodyClick(date: ISODate, dayLabel: WeeklyDayLabel, existingPlan: FastPlan | undefined) {
-    if (armedRadiateDay !== null) {
-      if (onMoveRadiateDay) onMoveRadiateDay(armedRadiateDay, isoWeekday(date));
-      setArmedRadiateDay(null);
+    if (existingPlan || refeedDays?.[date] || occupiedDays?.[date]) return;
+    const committed = isWeekCommitted(date);
+    if (!committed) {
+      if (onDefineDeepFastDay) onDefineDeepFastDay(date);
+      else onLockedInteraction?.();
       return;
     }
-    if (dayLabel !== "deep_fasting" || existingPlan || refeedDays?.[date] || occupiedDays?.[date]) return;
-    if (onPlanRadiateDay) {
-      onPlanRadiateDay(date);
-    } else {
-      onLockedInteraction?.();
-    }
+    // Once the week is decided, only support days are plannable — the deep-fast day already
+    // has its plan (that's what "committed" means) and the nourish day is deliberately not
+    // a fasting day at all.
+    if (dayLabel !== "fasting") return;
+    if (onPlanSupportFast) onPlanSupportFast(date);
+    else onLockedInteraction?.();
   }
 
   return (
@@ -187,48 +192,27 @@ export function WeeklyRhythmCalendar({
           if (!date) return <div key={`blank-${i}`} />;
 
           const dayLabel: WeeklyDayLabel = schedule ? getWeeklyRhythmDayLabel(date, schedule) : "unplanned";
-          const style = DAY_STYLES[dayLabel];
+          const committed = isWeekCommitted(date);
+          const style = committed ? DAY_STYLES[dayLabel] : PLAIN_STYLE;
           const isToday = date === todayISO;
           const dayNumber = Number(date.slice(8, 10));
           const moonHighlight = moonHighlights?.[date];
           const MoonIcon = moonHighlight ? MOON_HIGHLIGHT_ICONS[moonHighlight] : null;
-          const Icon = dayLabel !== "unplanned" ? PHASE_ICONS[LABEL_TO_PHASE_ICON[dayLabel]] : null;
-          const weekday = isoWeekday(date);
-          const isArmedBadge = dayLabel === "deep_fasting" && armedRadiateDay === weekday;
           const existingPlan = fastPlanByDate.get(date);
-          const isDropTarget = armedRadiateDay !== null;
 
           return (
             <div
               key={date}
               onClick={() => handleCellBodyClick(date, dayLabel, existingPlan)}
-              className={`relative aspect-square rounded-xl border-t-2 ${isToday ? style.todayBg : style.bg} ${style.border} flex items-center justify-center transition-colors ${
-                isDropTarget ? "cursor-pointer outline outline-2 outline-ivory/30" : ""
-              }`}
+              className={`relative aspect-square cursor-pointer rounded-xl border-t-2 ${isToday ? style.todayBg : style.bg} ${style.border} flex items-center justify-center transition-colors`}
             >
-              {Icon &&
-                (dayLabel === "deep_fasting" ? (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRadiateBadgeClick(weekday);
-                    }}
-                    aria-pressed={isArmedBadge}
-                    aria-label={`${isArmedBadge ? "Stop moving" : "Move"} the Radiate day${!onMoveRadiateDay ? " — Premium feature" : ""}`}
-                    className={`absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ivory ${
-                      isArmedBadge ? style.solidBg : `bg-obsidian ring-1 ${style.border} ${onMoveRadiateDay ? "" : "opacity-60"}`
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 ${isArmedBadge ? "text-obsidian" : style.text}`} strokeWidth={2} />
-                  </button>
-                ) : (
-                  <span
-                    className={`absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-obsidian ring-1 ${style.border}`}
-                  >
-                    <Icon className={`h-4 w-4 ${style.text}`} strokeWidth={2} />
-                  </span>
-                ))}
+              {committed && (
+                <span
+                  className={`absolute top-1 left-1/2 -translate-x-1/2 whitespace-nowrap font-accent text-[8px] uppercase tracking-wider ${style.text}`}
+                >
+                  {style.label}
+                </span>
+              )}
               {MoonIcon && moonHighlight && (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
                   {onMoonHighlightClick ? (
@@ -348,9 +332,9 @@ export function WeeklyRhythmCalendar({
 
 export function WeeklyRhythmLegend() {
   const entries: { label: WeeklyDayLabel; descriptor: string }[] = [
-    { label: "fasting", descriptor: "fasting support days" },
-    { label: "deep_fasting", descriptor: "deep fasting possible" },
-    { label: "rest", descriptor: "nourish" },
+    { label: "deep_fasting", descriptor: "your chosen deep-fast day" },
+    { label: "rest", descriptor: "nourish, no fasting" },
+    { label: "fasting", descriptor: "gentle support days" },
   ];
   return (
     <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">

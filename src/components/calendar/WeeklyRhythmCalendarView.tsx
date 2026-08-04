@@ -6,15 +6,14 @@ import {
   eachDate,
   getWeeklyRhythmDayLabel,
   getWeeklyRhythmSchedule,
+  isoWeekday,
   moveDeepFastingDay,
   FIXED_WEEKLY_RHYTHM_PATTERNS,
   toISODate,
   type ISODate,
   type IsoWeekday,
   type MoonHighlightType,
-  type PhaseBlockName,
   type Tier,
-  type WeeklyDayLabel,
   type WeeklyRhythm,
   type WeeklyRhythmSelection,
   type YearMonth,
@@ -29,19 +28,10 @@ import {
 import { useFastPlanCrud } from "@/lib/calendar/use-fast-plan-crud";
 import { FastContinuationDialog, LogActualHoursDialog, PlanFastDialog, RefeedInfoDialog } from "./FastPlanDialogs";
 import { WeeklyRhythmCalendar, WeeklyRhythmLegend } from "./WeeklyRhythmCalendar";
+import { WeeklyRhythmInstructions } from "./WeeklyRhythmInstructions";
 import { WeeklyRhythmPicker } from "./WeeklyRhythmPicker";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
-import { PhaseFoodTipPanel } from "./PhaseFoodTipPanel";
 import { PremiumUpsellDialog } from "./PremiumUpsellDialog";
-
-/** No "Bloom" equivalent in Protocol 3 — mirrors WeeklyRhythmCalendar.tsx's local, unexported
- *  LABEL_TO_PHASE_ICON rather than exporting it, since this 3-entry lookup isn't worth a new
- *  export surface. "unplanned" simply gets no food-tip panel. */
-const LABEL_TO_PHASE_BLOCK: Record<Exclude<WeeklyDayLabel, "unplanned">, PhaseBlockName> = {
-  fasting: "inhale",
-  deep_fasting: "radiate",
-  rest: "exhale",
-};
 
 export interface WeeklyRhythmCalendarViewProps {
   viewedMonth: YearMonth;
@@ -58,7 +48,9 @@ export interface WeeklyRhythmCalendarViewProps {
   activeFastPlanId: string | null;
   userId: string | null;
   onSyncError: (message: string) => void;
-  /** Admin-editable guidance copy — see CalendarTrackManagerProps for the full key list. */
+  /** Admin-editable guidance copy — see CalendarTrackManagerProps for the full key list. Only
+   *  the duration-education tip applies here — the per-phase food tip Protocols 1/2 show is
+   *  skipped, since this track has no hormonal phase for that copy to describe. */
   content: Record<string, string>;
 }
 
@@ -71,18 +63,33 @@ type DialogState =
       existingPlan?: FastPlan;
       initialFastType?: FastType;
       minStartTime?: string;
+      /** True when confirming this plan should also reassign the weekly pattern's deep-fast
+       *  weekday to the clicked date, rather than just planning a fast on an already-decided day. */
+      isDefiningDeepFast?: boolean;
     }
   | { step: "logActual"; plan: FastPlan; existingLog?: FastLog }
   | { step: "refeedInfo"; date: ISODate; info: RefeedDayInfo }
   | { step: "occupiedInfo"; date: ISODate; info: FastOccupiedInfo }
   | { step: "upsell"; message: string };
 
+/** Nearest weekday in `candidates` to `target` (circular, wrapping Sun -> Mon). Only matters
+ *  for 4-2-1's two deep-fasting weekdays — picks which of the two gets reassigned when the
+ *  person defines a new deep-fast day elsewhere in the week. */
+function closestWeekday(candidates: IsoWeekday[], target: IsoWeekday): IsoWeekday {
+  return candidates.reduce((best, day) => {
+    const distBest = Math.min(Math.abs(best - target), 7 - Math.abs(best - target));
+    const distDay = Math.min(Math.abs(day - target), 7 - Math.abs(day - target));
+    return distDay < distBest ? day : best;
+  });
+}
+
 /**
  * Protocol 3 (weekly_rhythm / no_cycle tracks — menopause, men, no logged cycle). No cycle
- * math here: Rise/Radiate/Rest repeat on a fixed weekly pattern instead of a phase-block
- * cycle. Free tier gets a fixed pattern per rhythm (FIXED_WEEKLY_RHYTHM_PATTERNS); premium
- * can move which weekday is Radiate directly on the calendar, and plan dry/water/duration
- * on it the same way Protocols 1/2 do.
+ * here at all, so — unlike Protocols 1/2 — days carry no colour or phase icon until the
+ * person actually plans something: tapping any day in an undecided week opens the plan
+ * dialog and, on confirm, both saves that fast and reassigns the weekly pattern so that
+ * weekday becomes the deep-fast day (the following day auto-fills as nourish, the rest as
+ * support days). Free tier sees the same fixed pattern as before but can't plan against it.
  */
 export function WeeklyRhythmCalendarView({
   viewedMonth,
@@ -117,23 +124,28 @@ export function WeeklyRhythmCalendarView({
   const refeedDays = useMemo(() => computeRefeedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
   const occupiedDays = useMemo(() => computeFastOccupiedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
 
-  const todayLabel = todayISO && schedule ? getWeeklyRhythmDayLabel(todayISO, schedule) : "unplanned";
-  const todayBlock = todayLabel !== "unplanned" ? LABEL_TO_PHASE_BLOCK[todayLabel] : undefined;
+  function blockLabelFor(date: ISODate): string {
+    const label = getWeeklyRhythmDayLabel(date, schedule);
+    if (label === "deep_fasting") return "deep-fast";
+    if (label === "rest") return "nourish";
+    if (label === "fasting") return "support";
+    return "";
+  }
 
   function handleRhythmChange(rhythm: WeeklyRhythm) {
     onSelectionChange({ rhythm, ...FIXED_WEEKLY_RHYTHM_PATTERNS[rhythm] });
   }
 
-  function handleMoveRadiateDay(fromDay: IsoWeekday, toDay: IsoWeekday) {
-    onSelectionChange(moveDeepFastingDay(selection, fromDay, toDay));
+  function handleDefineDeepFastDay(date: ISODate) {
+    setDialog({ step: "planFast", dates: [date], blockLabel: "deep-fast", isDefiningDeepFast: true });
   }
 
-  function handlePlanRadiateDay(date: ISODate) {
-    setDialog({ step: "planFast", dates: [date], blockLabel: "Radiate" });
+  function handlePlanSupportFast(date: ISODate) {
+    setDialog({ step: "planFast", dates: [date], blockLabel: "support" });
   }
 
   function handleEditPlan(plan: FastPlan) {
-    setDialog({ step: "planFast", dates: [plan.plannedDate], blockLabel: "Radiate", existingPlan: plan });
+    setDialog({ step: "planFast", dates: [plan.plannedDate], blockLabel: blockLabelFor(plan.plannedDate), existingPlan: plan });
   }
 
   function handleLogActualHours(plan: FastPlan) {
@@ -157,7 +169,7 @@ export function WeeklyRhythmCalendarView({
     setDialog({
       step: "planFast",
       dates: [date],
-      blockLabel: "Radiate",
+      blockLabel: blockLabelFor(date),
       initialFastType: "water",
       minStartTime: info && info.sourceFastEndDate === date ? info.sourceFastEndTime : undefined,
     });
@@ -176,6 +188,11 @@ export function WeeklyRhythmCalendarView({
   function handleConfirmPlan(fastType: FastType, plannedHours: number, startTime: string) {
     if (dialog.step !== "planFast") return;
     confirmPlan({ dates: dialog.dates, existingPlan: dialog.existingPlan, fastType, plannedHours, startTime });
+    if (dialog.isDefiningDeepFast) {
+      const toDay = isoWeekday(dialog.dates[0]);
+      const fromDay = closestWeekday(selection.deepFastingDays, toDay);
+      onSelectionChange(moveDeepFastingDay(selection, fromDay, toDay));
+    }
     setDialog({ step: "none" });
   }
 
@@ -201,6 +218,8 @@ export function WeeklyRhythmCalendarView({
     <>
       <WeeklyRhythmPicker rhythm={selection.rhythm} onChange={handleRhythmChange} />
 
+      <WeeklyRhythmInstructions rhythm={selection.rhythm} />
+
       {selection.rhythm === "4-2-1" && (
         <div className="w-full max-w-xl rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-center font-body text-sm text-ivory">
           4-2-1 is a more intensive rhythm (two deep-fasting days) — recommended only for experienced fasters.
@@ -217,8 +236,8 @@ export function WeeklyRhythmCalendarView({
         onMoonHighlightClick={(date, type) => setMoonInfo({ date, type })}
         fastPlans={fastPlans}
         fastLogs={fastLogs}
-        onMoveRadiateDay={tier === "premium" ? handleMoveRadiateDay : undefined}
-        onPlanRadiateDay={tier === "premium" ? handlePlanRadiateDay : undefined}
+        onDefineDeepFastDay={tier === "premium" ? handleDefineDeepFastDay : undefined}
+        onPlanSupportFast={tier === "premium" ? handlePlanSupportFast : undefined}
         onEditPlan={tier === "premium" ? handleEditPlan : handleLockedHistoricalClick}
         onLogActualHours={tier === "premium" ? handleLogActualHours : handleLockedHistoricalClick}
         onLockedInteraction={
@@ -235,8 +254,6 @@ export function WeeklyRhythmCalendarView({
       />
 
       <WeeklyRhythmLegend />
-
-      {todayBlock && <PhaseFoodTipPanel block={todayBlock} tip={content[`food_${todayBlock}`]} />}
 
       {dialog.step === "planFast" && (
         <PlanFastDialog
