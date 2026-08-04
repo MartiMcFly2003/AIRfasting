@@ -69,7 +69,9 @@ export function useActiveFast(): UseActiveFastResult {
 
   useEffect(() => {
     if (!activeFast) return;
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    // The display only shows hours:minutes (a multi-hour fast doesn't need second-level
+    // precision), so there's no reason to re-render more often than that changes.
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(id);
   }, [activeFast]);
 

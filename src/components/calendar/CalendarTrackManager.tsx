@@ -244,6 +244,12 @@ export function CalendarTrackManager({
 
   const todaysPlan = todayISO ? fastPlans.find((p) => p.plannedDate === todayISO) : undefined;
 
+  // The live-tracked fast isn't necessarily against todaysPlan (e.g. still running past
+  // midnight from a plan made for yesterday), so its target has to be looked up by planId
+  // independently rather than reusing todaysPlan.
+  const activeFastPlan = activeFast?.planId ? fastPlans.find((p) => p.id === activeFast.planId) : undefined;
+  const activeFastTargetHours = activeFastPlan?.plannedHours ?? undefined;
+
   // Purely informational — unrelated to the RefeedInfoDialog/computeRefeedDays blocking
   // mechanism, which only ever fires for 20h+ fasts. This nudge fires after any fast at all.
   let showPrepNudge = false;
@@ -360,6 +366,7 @@ export function CalendarTrackManager({
       <LiveFastTracker
         activeFast={activeFast}
         elapsedMs={elapsedMs}
+        activeFastTargetHours={activeFastTargetHours}
         todaysPlan={todaysPlan}
         durationTip={content["education_duration"]}
         onStart={startFast}
