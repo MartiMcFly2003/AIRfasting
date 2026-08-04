@@ -7,6 +7,7 @@
   --color-gold: #ffc971;
   --color-silver: #b7bcc6;
   --color-period: #e8536a;
+  --color-yellow: #ffdd57;
 
   --color-phase-inhale: #e8b969;
   --color-phase-bloom: #e8a6b8;
@@ -23,6 +24,7 @@
   --color-gold: var(--color-gold);
   --color-silver: var(--color-silver);
   --color-period: var(--color-period);
+  --color-yellow: var(--color-yellow);
   --color-phase-inhale: var(--color-phase-inhale);
   --color-phase-bloom: var(--color-phase-bloom);
   --color-phase-radiate: var(--color-phase-radiate);

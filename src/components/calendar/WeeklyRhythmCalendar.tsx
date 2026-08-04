@@ -30,24 +30,27 @@ const MOON_HIGHLIGHT_LABELS: Record<MoonHighlightType, string> = {
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** No menstrual/lunar phase behind this protocol, so these reuse the app's general accent
- *  tokens (coral/silver/gold) rather than the cycle-phase colours — deliberately a different
- *  palette from Protocols 1/2's Rise/Bloom/Radiate/Rest. */
+ *  tokens (coral/silver/yellow) rather than the cycle-phase colours — deliberately a different
+ *  palette from Protocols 1/2's Rise/Bloom/Radiate/Rest. Coral and yellow are used instead of
+ *  coral and gold specifically because gold sits too close to coral in hue to read as a
+ *  distinct colour at a glance — yellow gives real separation. Opacity is noticeably higher
+ *  than Protocols 1/2's phase washes too, since a single quiet tint read as barely-there. */
 const DAY_STYLES: Record<
   WeeklyDayLabel,
   { bg: string; todayBg: string; border: string; text: string; solidBg: string; glow: string; label: string }
 > = {
   fasting: {
-    bg: "bg-gold/15",
-    todayBg: "bg-gold/45",
-    border: "border-gold",
-    text: "text-gold",
-    solidBg: "bg-gold",
-    glow: "shadow-[0_0_10px_var(--color-gold)]",
+    bg: "bg-yellow/30",
+    todayBg: "bg-yellow/55",
+    border: "border-yellow",
+    text: "text-yellow",
+    solidBg: "bg-yellow",
+    glow: "shadow-[0_0_10px_var(--color-yellow)]",
     label: "Support",
   },
   deep_fasting: {
-    bg: "bg-coral/15",
-    todayBg: "bg-coral/45",
+    bg: "bg-coral/30",
+    todayBg: "bg-coral/55",
     border: "border-coral",
     text: "text-coral",
     solidBg: "bg-coral",
@@ -55,8 +58,8 @@ const DAY_STYLES: Record<
     label: "Deep fast",
   },
   rest: {
-    bg: "bg-silver/15",
-    todayBg: "bg-silver/45",
+    bg: "bg-silver/25",
+    todayBg: "bg-silver/50",
     border: "border-silver",
     text: "text-silver",
     solidBg: "bg-silver",
@@ -164,15 +167,24 @@ export function WeeklyRhythmCalendar({
 
   function handleCellBodyClick(date: ISODate, dayLabel: WeeklyDayLabel, existingPlan: FastPlan | undefined) {
     if (existingPlan || refeedDays?.[date] || occupiedDays?.[date]) return;
-    const committed = isWeekCommitted(date);
-    if (!committed) {
+    // An unfilled deep-fast slot is always open to defining, regardless of whether the week is
+    // otherwise decided — this matters for 4-2-1, where the first tap fills one of the two
+    // deep-fast days and the second slot (already schedule-designated, just not planned yet)
+    // needs to stay reachable rather than getting stuck once the week reads as "committed".
+    if (dayLabel === "deep_fasting") {
       if (onDefineDeepFastDay) onDefineDeepFastDay(date);
       else onLockedInteraction?.();
       return;
     }
-    // Once the week is decided, only support days are plannable — the deep-fast day already
-    // has its plan (that's what "committed" means) and the nourish day is deliberately not
-    // a fasting day at all.
+    const committed = isWeekCommitted(date);
+    if (!committed) {
+      // Nothing chosen yet anywhere in the week — any day can become the deep-fast day.
+      if (onDefineDeepFastDay) onDefineDeepFastDay(date);
+      else onLockedInteraction?.();
+      return;
+    }
+    // Once at least one deep-fast day is decided, only support days are further plannable —
+    // the nourish day is deliberately not a fasting day at all.
     if (dayLabel !== "fasting") return;
     if (onPlanSupportFast) onPlanSupportFast(date);
     else onLockedInteraction?.();
@@ -193,12 +205,16 @@ export function WeeklyRhythmCalendar({
 
           const dayLabel: WeeklyDayLabel = schedule ? getWeeklyRhythmDayLabel(date, schedule) : "unplanned";
           const committed = isWeekCommitted(date);
-          const style = committed ? DAY_STYLES[dayLabel] : PLAIN_STYLE;
+          const existingPlan = fastPlanByDate.get(date);
+          // A deep-fast slot only reads as "decided" once it has its own plan (matters for
+          // 4-2-1's second slot, which can otherwise sit unplanned in an already-committed
+          // week) — every other label just follows the week's overall committed state.
+          const isDecided = dayLabel === "deep_fasting" ? !!existingPlan : committed;
+          const style = isDecided ? DAY_STYLES[dayLabel] : PLAIN_STYLE;
           const isToday = date === todayISO;
           const dayNumber = Number(date.slice(8, 10));
           const moonHighlight = moonHighlights?.[date];
           const MoonIcon = moonHighlight ? MOON_HIGHLIGHT_ICONS[moonHighlight] : null;
-          const existingPlan = fastPlanByDate.get(date);
 
           return (
             <div
@@ -206,7 +222,7 @@ export function WeeklyRhythmCalendar({
               onClick={() => handleCellBodyClick(date, dayLabel, existingPlan)}
               className={`relative aspect-square cursor-pointer rounded-xl border-t-2 ${isToday ? style.todayBg : style.bg} ${style.border} flex items-center justify-center transition-colors`}
             >
-              {committed && (
+              {isDecided && (
                 <span
                   className={`absolute top-1 left-1/2 -translate-x-1/2 whitespace-nowrap font-accent text-[8px] uppercase tracking-wider ${style.text}`}
                 >
