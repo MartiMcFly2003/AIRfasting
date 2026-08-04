@@ -12,13 +12,14 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
  *  reads as "how far through" rather than implying a goal that was never set. */
 const UNTARGETED_REFERENCE_HOURS = 24;
 
-/** Hours:minutes only — a fast runs over hours, not seconds, so second-level precision is
- *  just noise on the display (see useActiveFast's matching 60s update interval). */
+/** Includes seconds, even on a multi-hour fast — without them ticking, the display reads
+ *  as frozen rather than as a running timer. */
 function formatElapsed(ms: number): string {
-  const totalMinutes = Math.max(0, Math.floor(ms / 60_000));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours}:${String(minutes).padStart(2, "0")}`;
+  const totalSeconds = Math.max(0, Math.floor(ms / 1_000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 export interface LiveFastTrackerProps {
