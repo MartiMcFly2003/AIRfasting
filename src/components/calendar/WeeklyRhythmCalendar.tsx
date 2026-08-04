@@ -156,10 +156,21 @@ export function WeeklyRhythmCalendar({
     ? ([1, 2, 3, 4, 5, 6, 7] as IsoWeekday[]).filter((d) => schedule[d] === "deep_fasting")
     : [];
 
-  /** A week only reads as "decided" once its own deep-fast day actually has a plan — the
-   *  underlying weekly pattern can already point at a weekday, but that alone shouldn't paint
-   *  a week nobody has committed to yet. */
+  /** A week only reads as "decided" once every one of its deep-fast days has a plan — for
+   *  4-2-1 that means both slots, not just the first one tapped, since support/nourish can't be
+   *  meaningfully implied (and the later deep-fast day still moves the nourish day) until both
+   *  are known. For 5-1-1 there's only ever one slot, so this is unchanged there. */
   function isWeekCommitted(date: ISODate): boolean {
+    if (!schedule || deepFastWeekdays.length === 0) return false;
+    const monday = addDays(date, -(isoWeekday(date) - 1));
+    return deepFastWeekdays.every((weekday) => fastPlanByDate.has(addDays(monday, weekday - 1)));
+  }
+
+  /** True once at least one (but not necessarily all) of the week's deep-fast days has a plan —
+   *  distinct from isWeekCommitted so a half-defined 4-2-1 week (one slot planned, one still
+   *  open) doesn't let a click on some other day reassign the pattern and strand the already-
+   *  planned slot. */
+  function isWeekStarted(date: ISODate): boolean {
     if (!schedule || deepFastWeekdays.length === 0) return false;
     const monday = addDays(date, -(isoWeekday(date) - 1));
     return deepFastWeekdays.some((weekday) => fastPlanByDate.has(addDays(monday, weekday - 1)));
@@ -176,17 +187,23 @@ export function WeeklyRhythmCalendar({
       else onLockedInteraction?.();
       return;
     }
-    const committed = isWeekCommitted(date);
-    if (!committed) {
-      // Nothing chosen yet anywhere in the week — any day can become the deep-fast day.
-      if (onDefineDeepFastDay) onDefineDeepFastDay(date);
+    if (isWeekCommitted(date)) {
+      // Every deep-fast day is decided — only support days are further plannable, the nourish
+      // day is deliberately not a fasting day at all.
+      if (dayLabel !== "fasting") return;
+      if (onPlanSupportFast) onPlanSupportFast(date);
       else onLockedInteraction?.();
       return;
     }
-    // Once at least one deep-fast day is decided, only support days are further plannable —
-    // the nourish day is deliberately not a fasting day at all.
-    if (dayLabel !== "fasting") return;
-    if (onPlanSupportFast) onPlanSupportFast(date);
+    if (isWeekStarted(date)) {
+      // One deep-fast day is already planned but (for 4-2-1) the other isn't yet — until it is,
+      // support/nourish can't be shown or planned, and this day mustn't be turned into a
+      // replacement deep-fast day either, since that would strand the plan already sitting on
+      // the first slot. Nothing to do here until the remaining deep-fast day is defined.
+      return;
+    }
+    // Nothing chosen yet anywhere in the week — any day can become the deep-fast day.
+    if (onDefineDeepFastDay) onDefineDeepFastDay(date);
     else onLockedInteraction?.();
   }
 

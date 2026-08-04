@@ -15,7 +15,7 @@ const RHYTHM_COPY: Record<WeeklyRhythm, string[]> = {
     "There's no menstrual or lunar cycle behind this rhythm — you set it yourself, one week at a time.",
     "4-2-1 means two deep-fast days each week, followed by a nourish day, with the remaining 4 days gently supporting them. Your two deep-fast days can be back-to-back or spread across the week, however suits you.",
     "For any week you'd like to fast, tap each of your two deep-fast days in turn and set the type, start time and length for each.",
-    "The rest of that week fills in on its own — the day right after your later deep-fast day becomes your nourish day, the other 4 become support days.",
+    "The rest of that week only fills in once both deep-fast days are set — the day right after the later one becomes your nourish day, the other 4 become support days.",
     "It's entirely your choice which weeks you follow this rhythm in — every week, or only the ones you pick.",
     "Look out for the small moon marker on some days — new moon, full moon and Ekadashi are traditionally considered favourable for fasting, if you'd like guidance on which days to choose.",
   ],
