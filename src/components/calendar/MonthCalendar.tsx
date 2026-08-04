@@ -361,18 +361,18 @@ export function MonthCalendar({
                     type="button"
                     onClick={() => onAdjustPeriod(day.date)}
                     aria-label={`Adjust logged period start (currently ${day.date})`}
-                    className="absolute bottom-1.5 left-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-obsidian ring-1 ring-coral transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral"
+                    className="absolute bottom-1.5 left-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-obsidian ring-1 ring-period transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-period"
                   >
-                    <PeriodStartIcon className="h-2.5 w-2.5 text-coral" />
+                    <PeriodStartIcon className="h-2.5 w-2.5 text-period" />
                   </button>
                 ) : (
-                  <span className="absolute bottom-1.5 left-1.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-obsidian ring-1 ring-coral">
-                    <PeriodStartIcon className="h-2.5 w-2.5 text-coral" />
+                  <span className="absolute bottom-1.5 left-1.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-obsidian ring-1 ring-period">
+                    <PeriodStartIcon className="h-2.5 w-2.5 text-period" />
                   </span>
                 ))}
               {!isPeriodStart && additionalPeriodDates?.includes(day.date) && (
-                <span className="absolute bottom-1.5 left-1.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-obsidian ring-1 ring-coral/50">
-                  <PeriodStartIcon className="h-2.5 w-2.5 text-coral/50" />
+                <span className="absolute bottom-1.5 left-1.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-obsidian ring-1 ring-period/50">
+                  <PeriodStartIcon className="h-2.5 w-2.5 text-period/50" />
                 </span>
               )}
               {isForecastedPeriodStart && isNextForecastedPeriodStart && onLogPeriod ? (
@@ -380,14 +380,14 @@ export function MonthCalendar({
                   type="button"
                   onClick={() => onLogPeriod(day.date)}
                   aria-label={`Confirm period start on or before ${day.date}`}
-                  className="absolute bottom-1.5 left-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full border border-dashed border-coral bg-obsidian transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral"
+                  className="absolute bottom-1.5 left-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full border border-dashed border-period bg-obsidian transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-period"
                 >
-                  <PeriodForecastIcon className="h-2.5 w-2.5 text-coral" strokeWidth={2} />
+                  <PeriodForecastIcon className="h-2.5 w-2.5 text-period" strokeWidth={2} />
                 </button>
               ) : (
                 isForecastedPeriodStart && (
-                  <span className="absolute bottom-1.5 left-1.5 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-dashed border-coral bg-obsidian">
-                    <PeriodForecastIcon className="h-2.5 w-2.5 text-coral" strokeWidth={2} />
+                  <span className="absolute bottom-1.5 left-1.5 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-dashed border-period bg-obsidian">
+                    <PeriodForecastIcon className="h-2.5 w-2.5 text-period" strokeWidth={2} />
                   </span>
                 )
               )}
