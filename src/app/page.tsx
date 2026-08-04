@@ -8,6 +8,12 @@ export default function Home() {
         A cycle-aware fasting calendar &mdash; plan fasting days around your
         body&rsquo;s rhythm, whatever stage of life you&rsquo;re in.
       </p>
+      <div aria-hidden="true" className="flex gap-3 pt-4">
+        <span className="h-6 w-10 rounded-full bg-phase-inhale" />
+        <span className="h-6 w-10 rounded-full bg-phase-bloom" />
+        <span className="h-6 w-10 rounded-full bg-phase-radiate" />
+        <span className="h-6 w-10 rounded-full bg-phase-exhale" />
+      </div>
       <div className="flex gap-4 pt-6">
         <Link
           href="/sign-up"
