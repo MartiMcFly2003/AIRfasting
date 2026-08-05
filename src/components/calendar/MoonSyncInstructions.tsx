@@ -21,7 +21,7 @@ function ChevronDown(props: SVGProps<SVGSVGElement>) {
 
 const MOON_SYNC_COPY: string[] = [
   "Your cycle is irregular, so instead of predicting from your last period, this calendar syncs your fasting rhythm to the moon — anchored to the most recent new moon.",
-  "Four phases repeat with the moon: Rise and Radiate are fasting-friendly windows, Bloom and Rest are nourish-only days with no fasting recommended.",
+  "Four phases repeat with the moon: Rise and Radiate are fasting-friendly windows, Bloom and Rest are nourish-only days with no fasting recommended. You can see exactly which day each phase starts by the small rising-sun icon (Rise) or radiating-sun icon (Radiate) in the corner of that day.",
   "Tap any Rise (yellow) or Radiate (coral) day directly to plan a fast — set the type, start time and length.",
   "Use \"Log period start\" whenever your period actually begins — it doesn't move the phase colours, but keeps your cycle history accurate.",
   "Look out for the small moon marker on some days — new moon, full moon and Ekadashi are traditionally considered favourable for fasting; if they fall into a window which is not recommended for fasting you can also choose to eat light and avoid grains on these days.",
