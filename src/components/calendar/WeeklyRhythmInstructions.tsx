@@ -1,6 +1,24 @@
 "use client";
 
+import { useState } from "react";
+import type { SVGProps } from "react";
 import type { WeeklyRhythm } from "@/lib/calendar";
+
+function ChevronDown(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
 
 const RHYTHM_COPY: Record<WeeklyRhythm, string[]> = {
   "5-1-1": [
@@ -25,21 +43,34 @@ export interface WeeklyRhythmInstructionsProps {
   rhythm: WeeklyRhythm;
 }
 
-/** Explains the weekly rhythm in plain terms, up front — this protocol has no cycle to infer
- *  meaning from the way Protocols 1/2's phase colours do, so the calendar needs to say in
- *  words what it no longer shows in colour until a day is actually planned. */
+/** Explains the weekly rhythm in plain terms — this protocol has no cycle to infer meaning
+ *  from the way Protocols 1/2's phase colours do, so the calendar needs to say in words what
+ *  it no longer shows in colour until a day is actually planned. Collapsed by default so it
+ *  doesn't sit as a wall of text above the calendar on every visit. */
 export function WeeklyRhythmInstructions({ rhythm }: WeeklyRhythmInstructionsProps) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <div className="w-full max-w-xl rounded-xl border border-ivory/10 px-4 py-4">
-      <p className="font-accent text-xs uppercase tracking-wider text-silver">How this rhythm works</p>
-      <ul className="mt-2 flex flex-col gap-2 font-body text-sm text-ivory">
-        {RHYTHM_COPY[rhythm].map((line) => (
-          <li key={line} className="flex gap-2">
-            <span className="shrink-0 text-silver">·</span>
-            <span>{line}</span>
-          </li>
-        ))}
-      </ul>
+    <div className="w-full max-w-xl rounded-xl border border-ivory/10">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left font-accent text-sm text-ivory"
+      >
+        How does this rhythm and calendar work?
+        <ChevronDown className={`h-4 w-4 shrink-0 text-silver transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <ul className="flex flex-col gap-2 border-t border-ivory/10 px-4 py-3 font-body text-sm text-ivory">
+          {RHYTHM_COPY[rhythm].map((line) => (
+            <li key={line} className="flex gap-2">
+              <span className="shrink-0 text-silver">·</span>
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
