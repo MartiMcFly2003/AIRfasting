@@ -35,6 +35,14 @@
   --font-accent: var(--font-dm-sans);
 }
 
+html {
+  /* AIRfasting is a single fixed dark theme by design (no light-mode variant) — without this,
+     native browser chrome not manually styled elsewhere (mainly scrollbars; every date/time
+     input already forces [color-scheme:dark] individually) falls back to the browser's own
+     default rather than following the app's actual theme. */
+  color-scheme: dark;
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);
