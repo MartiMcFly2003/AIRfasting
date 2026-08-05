@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { DialogBody, DialogTitle } from "@/components/calendar/DialogPrimitives";
-import type { Goal, OnboardingAnswers } from "@/lib/onboarding/types";
+import { useState } from "react";
+import { DialogBody, DialogShell, DialogTitle, PrimaryButton } from "@/components/calendar/DialogPrimitives";
+import type { Goal, HealthCondition, OnboardingAnswers } from "@/lib/onboarding/types";
 import { ChoiceButton, InlineError } from "./OnboardingPrimitives";
 
 export interface ScreenProps {
@@ -246,7 +247,44 @@ const BINGE_EATING_OPTIONS: { value: NonNullable<OnboardingAnswers["bingeEating"
   { value: "prefer_not_to_say", label: "Prefer not to say" },
 ];
 
+const HEALTH_CONDITION_OPTIONS: { value: HealthCondition; label: string }[] = [
+  { value: "diabetes", label: "Diabetes or a blood sugar condition" },
+  { value: "heart_condition", label: "Heart or cardiovascular condition" },
+  { value: "kidney_disease", label: "Kidney disease" },
+  { value: "breastfeeding", label: "Currently breastfeeding" },
+  { value: "medication", label: "Taking medication that fasting could affect (e.g. insulin, blood pressure, blood thinners)" },
+  { value: "other", label: "Another health condition" },
+  { value: "none", label: "None of these" },
+];
+
+const PREGNANCY_OPTIONS: { value: NonNullable<OnboardingAnswers["pregnancyOrTryingToConceive"]>; label: string }[] = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+];
+
 export function SafetyGateScreen({ answers, onChange }: ScreenProps) {
+  const [showHealthWarning, setShowHealthWarning] = useState(false);
+  const showsPregnancyQuestion = answers.gender === "woman" || answers.gender === "self_describe";
+  const conditions = answers.healthConditions ?? [];
+
+  function toggleCondition(condition: HealthCondition) {
+    let next: HealthCondition[];
+    if (condition === "none") {
+      next = conditions.includes("none") ? [] : ["none"];
+    } else {
+      const withoutNone = conditions.filter((c) => c !== "none");
+      next = withoutNone.includes(condition)
+        ? withoutNone.filter((c) => c !== condition)
+        : [...withoutNone, condition];
+    }
+    const hadConditionBefore = conditions.some((c) => c !== "none");
+    const hasConditionNow = next.some((c) => c !== "none");
+    onChange({ healthConditions: next });
+    // Warn the moment a real condition is first checked, not on every subsequent toggle —
+    // re-showing it for each additional box ticked would just be noise.
+    if (!hadConditionBefore && hasConditionNow) setShowHealthWarning(true);
+  }
+
   return (
     <>
       <DialogTitle>A couple of health questions</DialogTitle>
@@ -275,6 +313,46 @@ export function SafetyGateScreen({ answers, onChange }: ScreenProps) {
           />
         ))}
       </div>
+
+      <p className={`mt-4 ${FIELD_LABEL}`}>Do any of these apply to you?</p>
+      <div className="mt-2 flex flex-col gap-2">
+        {HEALTH_CONDITION_OPTIONS.map((opt) => (
+          <ChoiceButton
+            key={opt.value}
+            label={opt.label}
+            selected={conditions.includes(opt.value)}
+            onSelect={() => toggleCondition(opt.value)}
+          />
+        ))}
+      </div>
+
+      {showsPregnancyQuestion && (
+        <>
+          <p className={`mt-4 ${FIELD_LABEL}`}>Are you currently pregnant, or trying to conceive?</p>
+          <div className="mt-2 flex flex-col gap-2">
+            {PREGNANCY_OPTIONS.map((opt) => (
+              <ChoiceButton
+                key={opt.value}
+                label={opt.label}
+                selected={answers.pregnancyOrTryingToConceive === opt.value}
+                onSelect={() => onChange({ pregnancyOrTryingToConceive: opt.value })}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {showHealthWarning && (
+        <DialogShell>
+          <DialogTitle>A quick note</DialogTitle>
+          <DialogBody>
+            Considering your health conditions, please start with light fasting only and check with your doctor.
+          </DialogBody>
+          <div className="mt-5">
+            <PrimaryButton onClick={() => setShowHealthWarning(false)}>I understand</PrimaryButton>
+          </div>
+        </DialogShell>
+      )}
     </>
   );
 }

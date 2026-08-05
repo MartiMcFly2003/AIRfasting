@@ -40,8 +40,16 @@ function canProceed(screen: ScreenId, a: OnboardingAnswers): boolean {
       return true; // not_sure — no follow-up needed
     case "fasting":
       return a.triedDryFasting != null && a.triedWaterFasting != null;
-    case "safety":
-      return a.edHistory != null && a.bingeEating != null;
+    case "safety": {
+      const showsPregnancyQuestion = a.gender === "woman" || a.gender === "self_describe";
+      return (
+        a.edHistory != null &&
+        a.bingeEating != null &&
+        a.healthConditions != null &&
+        a.healthConditions.length > 0 &&
+        (!showsPregnancyQuestion || a.pregnancyOrTryingToConceive != null)
+      );
+    }
     case "goals":
       return true; // optional — doesn't feed deriveTrack or any gating this pass
   }
@@ -81,6 +89,12 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
       });
       if (gated) {
         router.push("/protocol-0");
+        return;
+      }
+      // Pregnancy and actively trying to conceive are a hard contraindication for fasting,
+      // not just a "start light" caution — same no-calendar treatment as the ED/binge gate.
+      if (answers.pregnancyOrTryingToConceive === "yes") {
+        router.push("/protocol-0?reason=pregnancy");
         return;
       }
     }

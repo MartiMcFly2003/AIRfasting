@@ -6,6 +6,14 @@ export type YesNoNotSure = "yes" | "no" | "not_sure";
 export type YesNo = "yes" | "no";
 export type EdHistory = "current" | "past_working_through" | "past_recovered" | "no" | "prefer_not_to_say";
 export type BingeEating = "often" | "sometimes" | "rarely_never" | "prefer_not_to_say";
+export type HealthCondition =
+  | "diabetes"
+  | "heart_condition"
+  | "kidney_disease"
+  | "breastfeeding"
+  | "medication"
+  | "other"
+  | "none";
 export type Goal =
   | "hormonal_balance"
   | "cycle_awareness"
@@ -29,6 +37,10 @@ export interface OnboardingAnswers {
   triedWaterFasting?: YesNo;
   edHistory?: EdHistory;
   bingeEating?: BingeEating;
+  healthConditions?: HealthCondition[];
+  /** Hard-blocks calendar generation (like the ED/binge gate) — pregnancy and actively trying
+   *  to conceive are contraindications for fasting, not just a "start light" caution. */
+  pregnancyOrTryingToConceive?: YesNo;
   goals?: Goal[];
   termsAccepted?: boolean;
   healthDataConsent?: boolean;
