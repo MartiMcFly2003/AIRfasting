@@ -5,16 +5,7 @@ import { ManageSubscriptionLink } from "@/components/billing/ManageSubscriptionL
 import { CalendarTrackManager } from "@/components/calendar/CalendarTrackManager";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import type { PauseReason } from "@/components/calendar/PauseDialogs";
-import {
-  FIXED_WEEKLY_RHYTHM_PATTERNS,
-  TRACK_PROTOCOL,
-  toISODate,
-  type ISODate,
-  type Track,
-  type WeeklyRhythm,
-  type WeeklyRhythmSelection,
-  type YearMonth,
-} from "@/lib/calendar";
+import { TRACK_PROTOCOL, toISODate, type ISODate, type Track, type YearMonth } from "@/lib/calendar";
 import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
 import { getMoonHighlightsForMonth } from "@/lib/calendar/moon-highlights";
 import { createClient } from "@/lib/supabase/server";
@@ -55,9 +46,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select(
-      "track, last_period_date, cycle_length, paused_reason, weekly_rhythm, weekly_rhythm_fasting_days, weekly_rhythm_deep_fasting_days, role",
-    )
+    .select("track, last_period_date, cycle_length, paused_reason, role")
     .eq("user_id", user.id)
     .single();
 
@@ -68,14 +57,6 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const initialPeriodDate = profile.last_period_date ?? undefined;
   const initialCycleLength = profile.cycle_length;
   const initialPause = profile.paused_reason ? { reason: profile.paused_reason as PauseReason } : null;
-
-  const weeklyRhythm = (profile.weekly_rhythm as WeeklyRhythm | null) ?? "5-1-1";
-  const initialWeeklyRhythmSelection: WeeklyRhythmSelection = {
-    rhythm: weeklyRhythm,
-    fastingDays: profile.weekly_rhythm_fasting_days ?? FIXED_WEEKLY_RHYTHM_PATTERNS[weeklyRhythm].fastingDays,
-    deepFastingDays:
-      profile.weekly_rhythm_deep_fasting_days ?? FIXED_WEEKLY_RHYTHM_PATTERNS[weeklyRhythm].deepFastingDays,
-  };
 
   const [periodLogsResult, noPeriodMonthsResult, fastPlansResult, fastLogsResult, contentResult] = await Promise.all([
     supabase
@@ -170,7 +151,6 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         initialFastLogs={initialFastLogs}
         initialCycleLength={initialCycleLength}
         initialPause={initialPause}
-        initialWeeklyRhythmSelection={initialWeeklyRhythmSelection}
       />
 
       {tier === "premium" && <ManageSubscriptionLink />}

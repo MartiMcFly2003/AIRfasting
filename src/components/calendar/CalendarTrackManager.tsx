@@ -4,13 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   TRACK_PROTOCOL,
-  FIXED_WEEKLY_RHYTHM_PATTERNS,
   addDays,
   type ISODate,
   type MoonHighlightType,
   type Tier,
   type Track,
-  type WeeklyRhythmSelection,
   type YearMonth,
 } from "@/lib/calendar";
 import {
@@ -23,12 +21,7 @@ import { getPlansForMonth, type FastLog, type FastPlan } from "@/lib/calendar/fa
 import { insertFastLog } from "@/lib/calendar/persistence/fast-logs";
 import { syncNoPeriodMonths } from "@/lib/calendar/persistence/no-period-months";
 import { syncPeriodHistory } from "@/lib/calendar/persistence/period-logs";
-import {
-  saveCycleLength,
-  savePauseState,
-  saveTrack,
-  saveWeeklyRhythmSelection,
-} from "@/lib/calendar/persistence/profile-fields";
+import { saveCycleLength, savePauseState, saveTrack } from "@/lib/calendar/persistence/profile-fields";
 import { useActiveFast } from "@/lib/calendar/use-active-fast";
 import { CalendarView } from "./CalendarView";
 import { CycleHistoryPanel } from "./CycleHistoryPanel";
@@ -66,11 +59,6 @@ const MOCK_FAST_LOGS: FastLog[] = [
   },
 ];
 
-const MOCK_WEEKLY_RHYTHM_SELECTION: WeeklyRhythmSelection = {
-  rhythm: "5-1-1",
-  ...FIXED_WEEKLY_RHYTHM_PATTERNS["5-1-1"],
-};
-
 function todayAsISODate(): ISODate {
   return new Date().toISOString().slice(0, 10);
 }
@@ -101,7 +89,6 @@ export interface CalendarTrackManagerProps {
   initialFastLogs?: FastLog[];
   initialCycleLength?: number;
   initialPause?: PauseState | null;
-  initialWeeklyRhythmSelection?: WeeklyRhythmSelection;
 }
 
 export function CalendarTrackManager({
@@ -120,7 +107,6 @@ export function CalendarTrackManager({
   initialFastLogs,
   initialCycleLength,
   initialPause,
-  initialWeeklyRhythmSelection,
 }: CalendarTrackManagerProps) {
   const router = useRouter();
   const [track, setTrack] = useState<Track>(initialTrack);
@@ -140,9 +126,6 @@ export function CalendarTrackManager({
   const [pause, setPause] = useState<PauseState | null>(initialPause ?? null);
   const [fastPlans, setFastPlans] = useState<FastPlan[]>(initialFastPlans ?? MOCK_FAST_PLANS);
   const [fastLogs, setFastLogs] = useState<FastLog[]>(initialFastLogs ?? MOCK_FAST_LOGS);
-  const [weeklyRhythmSelection, setWeeklyRhythmSelection] = useState<WeeklyRhythmSelection>(
-    initialWeeklyRhythmSelection ?? MOCK_WEEKLY_RHYTHM_SELECTION,
-  );
   const [regularBannerDismissed, setRegularBannerDismissed] = useState(false);
   const [irregularDialogDismissed, setIrregularDialogDismissed] = useState(false);
   const [showUnpauseDialog, setShowUnpauseDialog] = useState(false);
@@ -213,11 +196,6 @@ export function CalendarTrackManager({
   function handleCycleLengthChange(next: number) {
     setCycleLength(next);
     if (userId) void saveCycleLength(userId, next).catch(reportSyncError);
-  }
-
-  function handleWeeklyRhythmSelectionChange(next: WeeklyRhythmSelection) {
-    setWeeklyRhythmSelection(next);
-    if (userId) void saveWeeklyRhythmSelection(userId, next).catch(reportSyncError);
   }
 
   const protocol = TRACK_PROTOCOL[track];
@@ -420,8 +398,6 @@ export function CalendarTrackManager({
           viewedMonth={viewedMonth}
           todayISO={todayISO}
           moonHighlights={moonHighlights}
-          selection={weeklyRhythmSelection}
-          onSelectionChange={handleWeeklyRhythmSelectionChange}
           tier={tier}
           fastPlans={fastPlans}
           fastLogs={fastLogs}

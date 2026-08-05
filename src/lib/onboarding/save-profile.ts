@@ -36,7 +36,6 @@ export async function saveOnboardingProfile(userId: string, answers: OnboardingA
     age: answers.age ?? null,
     plan_type: profile.planType,
     track: track === "no_calendar" ? null : track,
-    weekly_rhythm: track === "weekly_rhythm" || track === "no_cycle" ? "5-1-1" : null,
     last_period_date: answers.lastPeriodDate ?? null,
     dry_fasting_experience: toBooleanOrNull(answers.triedDryFasting),
     water_fasting_experience: toBooleanOrNull(answers.triedWaterFasting),

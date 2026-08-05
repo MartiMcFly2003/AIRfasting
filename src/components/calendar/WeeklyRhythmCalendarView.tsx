@@ -2,21 +2,13 @@
 
 import { useMemo, useState } from "react";
 import {
-  addDays,
   daysInMonth,
   eachDate,
-  getWeeklyRhythmDayLabel,
-  getWeeklyRhythmSchedule,
-  isoWeekday,
-  moveDeepFastingDay,
-  FIXED_WEEKLY_RHYTHM_PATTERNS,
+  getWeeklyDayLabel,
   toISODate,
   type ISODate,
-  type IsoWeekday,
   type MoonHighlightType,
   type Tier,
-  type WeeklyRhythm,
-  type WeeklyRhythmSelection,
   type YearMonth,
 } from "@/lib/calendar";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
@@ -30,7 +22,6 @@ import { useFastPlanCrud } from "@/lib/calendar/use-fast-plan-crud";
 import { FastContinuationDialog, LogActualHoursDialog, PlanFastDialog, RefeedInfoDialog } from "./FastPlanDialogs";
 import { WeeklyRhythmCalendar, WeeklyRhythmLegend } from "./WeeklyRhythmCalendar";
 import { WeeklyRhythmInstructions } from "./WeeklyRhythmInstructions";
-import { WeeklyRhythmPicker } from "./WeeklyRhythmPicker";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
 import { PremiumUpsellDialog } from "./PremiumUpsellDialog";
 
@@ -38,9 +29,6 @@ export interface WeeklyRhythmCalendarViewProps {
   viewedMonth: YearMonth;
   todayISO?: ISODate;
   moonHighlights: Partial<Record<ISODate, MoonHighlightType>>;
-  /** Owned by CalendarTrackManager so it survives a track switch. */
-  selection: WeeklyRhythmSelection;
-  onSelectionChange: (next: WeeklyRhythmSelection) => void;
   tier: Tier;
   fastPlans: FastPlan[];
   fastLogs: FastLog[];
@@ -64,51 +52,26 @@ type DialogState =
       existingPlan?: FastPlan;
       initialFastType?: FastType;
       minStartTime?: string;
-      /** True when confirming this plan should also reassign the weekly pattern's deep-fast
-       *  weekday to the clicked date, rather than just planning a fast on an already-decided day. */
-      isDefiningDeepFast?: boolean;
     }
   | { step: "logActual"; plan: FastPlan; existingLog?: FastLog }
   | { step: "refeedInfo"; date: ISODate; info: RefeedDayInfo }
   | { step: "occupiedInfo"; date: ISODate; info: FastOccupiedInfo }
   | { step: "upsell"; message: string };
 
-/** Nearest weekday in `candidates` to `target` (circular, wrapping Sun -> Mon). Only matters
- *  for 4-2-1's two deep-fasting weekdays — picks which of the two gets reassigned when the
- *  person defines a new deep-fast day elsewhere in the week. */
-function closestWeekday(candidates: IsoWeekday[], target: IsoWeekday): IsoWeekday {
-  return candidates.reduce((best, day) => {
-    const distBest = Math.min(Math.abs(best - target), 7 - Math.abs(best - target));
-    const distDay = Math.min(Math.abs(day - target), 7 - Math.abs(day - target));
-    return distDay < distBest ? day : best;
-  });
-}
-
-/** Which of `deepFastingDays` already has a saved plan within the week containing `date` —
- *  used so reassigning the pattern when a new deep-fast day is chosen never picks a slot that's
- *  already planned. Without this, 4-2-1's closest-weekday heuristic could reassign the day the
- *  person already committed to (the one with the plan) instead of the still-open second slot,
- *  stranding that plan on a weekday the pattern no longer labels as deep-fasting. */
-function plannedDeepFastingWeekdays(date: ISODate, deepFastingDays: IsoWeekday[], fastPlans: FastPlan[]): IsoWeekday[] {
-  const monday = addDays(date, -(isoWeekday(date) - 1));
-  const plannedDates = new Set(fastPlans.map((p) => p.plannedDate));
-  return deepFastingDays.filter((weekday) => plannedDates.has(addDays(monday, weekday - 1)));
-}
-
 /**
  * Protocol 3 (weekly_rhythm / no_cycle tracks — menopause, men, no logged cycle). No cycle
  * here at all, so — unlike Protocols 1/2 — days carry no colour or phase icon until the
- * person actually plans something: tapping any day in an undecided week opens the plan
- * dialog and, on confirm, both saves that fast and reassigns the weekly pattern so that
- * weekday becomes the deep-fast day (the following day auto-fills as nourish, the rest as
- * support days). Free tier sees the same fixed pattern as before but can't plan against it.
+ * person actually plans something. Each week's deep-fast day(s), nourish day and support days
+ * are derived purely from that week's actual fast plans (getWeeklyDayLabel) — there's no
+ * separate "rhythm" setting to keep in sync. Tapping any day in an undecided week defines it as
+ * that week's deep-fast day; once a week has exactly one, the "+ Add a 2nd deep-fast day"
+ * action lets a more experienced faster add a second. Free tier sees the same plain grid but
+ * can't plan against it.
  */
 export function WeeklyRhythmCalendarView({
   viewedMonth,
   todayISO,
   moonHighlights,
-  selection,
-  onSelectionChange,
   tier,
   fastPlans,
   fastLogs,
@@ -121,6 +84,7 @@ export function WeeklyRhythmCalendarView({
 }: WeeklyRhythmCalendarViewProps) {
   const [moonInfo, setMoonInfo] = useState<{ date: ISODate; type: MoonHighlightType } | null>(null);
   const [dialog, setDialog] = useState<DialogState>({ step: "none" });
+  const [armed2ndDay, setArmed2ndDay] = useState(false);
   const { confirmPlan, removePlan, confirmLog, removeLog } = useFastPlanCrud({
     userId,
     fastPlans,
@@ -130,26 +94,30 @@ export function WeeklyRhythmCalendarView({
     onError: onSyncError,
   });
 
-  const schedule = getWeeklyRhythmSchedule(selection);
   const days = eachDate(toISODate(viewedMonth, 1), toISODate(viewedMonth, daysInMonth(viewedMonth)));
 
   const refeedDays = useMemo(() => computeRefeedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
   const occupiedDays = useMemo(() => computeFastOccupiedDays(fastPlans, fastLogs), [fastPlans, fastLogs]);
 
   function blockLabelFor(date: ISODate): string {
-    const label = getWeeklyRhythmDayLabel(date, schedule);
+    const label = getWeeklyDayLabel(date, fastPlans);
     if (label === "deep_fasting") return "deep-fast";
     if (label === "rest") return "nourish";
     if (label === "fasting") return "support";
     return "";
   }
 
-  function handleRhythmChange(rhythm: WeeklyRhythm) {
-    onSelectionChange({ rhythm, ...FIXED_WEEKLY_RHYTHM_PATTERNS[rhythm] });
+  function handleToggleArmed2ndDay() {
+    if (tier !== "premium") {
+      setDialog({ step: "upsell", message: "Customizing your fasting rhythm is a Premium feature." });
+      return;
+    }
+    setArmed2ndDay((v) => !v);
   }
 
   function handleDefineDeepFastDay(date: ISODate) {
-    setDialog({ step: "planFast", dates: [date], blockLabel: "deep-fast", isDefiningDeepFast: true });
+    setArmed2ndDay(false);
+    setDialog({ step: "planFast", dates: [date], blockLabel: "deep-fast" });
   }
 
   function handlePlanSupportFast(date: ISODate) {
@@ -200,15 +168,6 @@ export function WeeklyRhythmCalendarView({
   function handleConfirmPlan(fastType: FastType, plannedHours: number, startTime: string) {
     if (dialog.step !== "planFast") return;
     confirmPlan({ dates: dialog.dates, existingPlan: dialog.existingPlan, fastType, plannedHours, startTime });
-    if (dialog.isDefiningDeepFast) {
-      const toDay = isoWeekday(dialog.dates[0]);
-      // Only reassign among slots that aren't already planned — otherwise the closest-weekday
-      // heuristic could move away the deep-fast day the person already committed to.
-      const planned = plannedDeepFastingWeekdays(dialog.dates[0], selection.deepFastingDays, fastPlans);
-      const unplanned = selection.deepFastingDays.filter((d) => !planned.includes(d));
-      const fromDay = closestWeekday(unplanned.length > 0 ? unplanned : selection.deepFastingDays, toDay);
-      onSelectionChange(moveDeepFastingDay(selection, fromDay, toDay));
-    }
     setDialog({ step: "none" });
   }
 
@@ -238,21 +197,12 @@ export function WeeklyRhythmCalendarView({
 
   return (
     <>
-      <WeeklyRhythmPicker rhythm={selection.rhythm} onChange={handleRhythmChange} />
-
-      <WeeklyRhythmInstructions rhythm={selection.rhythm} />
-
-      {selection.rhythm === "4-2-1" && (
-        <div className="w-full max-w-xl rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-center font-body text-sm text-ivory">
-          4-2-1 is a more intensive rhythm (two deep-fasting days) — recommended only for experienced fasters.
-        </div>
-      )}
+      <WeeklyRhythmInstructions />
 
       <WeeklyRhythmCalendar
         year={viewedMonth.year}
         month={viewedMonth.month}
         days={days}
-        schedule={schedule}
         todayISO={todayISO}
         moonHighlights={moonHighlights}
         onMoonHighlightClick={(date, type) => setMoonInfo({ date, type })}
@@ -267,6 +217,7 @@ export function WeeklyRhythmCalendarView({
             ? () => setDialog({ step: "upsell", message: "Customizing your fasting rhythm is a Premium feature." })
             : undefined
         }
+        armedForSecondDeepFastDay={armed2ndDay}
         refeedDays={refeedDays}
         onRefeedDayClick={handleRefeedDayClick}
         occupiedDays={occupiedDays}
@@ -276,6 +227,24 @@ export function WeeklyRhythmCalendarView({
       />
 
       <WeeklyRhythmLegend />
+
+      <div className="flex flex-col items-center gap-2">
+        <button
+          type="button"
+          onClick={handleToggleArmed2ndDay}
+          className={`rounded-full px-4 py-1.5 font-accent text-sm transition-colors ${
+            armed2ndDay ? "bg-coral text-obsidian" : "border border-ivory/20 text-ivory hover:bg-ivory/10"
+          }`}
+        >
+          {armed2ndDay ? "Cancel" : "+ Add a 2nd deep-fast day"}
+        </button>
+        {armed2ndDay && (
+          <p className="max-w-xs text-center font-body text-xs text-silver">
+            Two deep-fast days a week is more intensive — recommended only for experienced
+            fasters. Tap a day in a week that already has one deep-fast day defined.
+          </p>
+        )}
+      </div>
 
       {dialog.step === "planFast" && (
         <PlanFastDialog

@@ -1,11 +1,9 @@
 "use client";
 
 import {
-  addDays,
-  getWeeklyRhythmDayLabel,
-  isoWeekday,
+  deepFastingWeekdaysInWeek,
+  getWeeklyDayLabel,
   type ISODate,
-  type IsoWeekday,
   type MoonHighlightType,
   type Tier,
   type WeeklyDayLabel,
@@ -87,22 +85,26 @@ export interface WeeklyRhythmCalendarProps {
   /** 1-12 */
   month: number;
   days: ISODate[];
-  schedule: Record<IsoWeekday, WeeklyDayLabel> | null;
   todayISO?: string;
   moonHighlights?: Partial<Record<ISODate, MoonHighlightType>>;
   onMoonHighlightClick?: (date: ISODate, type: MoonHighlightType) => void;
   fastPlans?: FastPlan[];
   fastLogs?: FastLog[];
-  /** Click on any day in a week whose deep-fast day hasn't been defined yet, premium only —
-   *  undefined on free tier. Confirming reassigns the weekly pattern to that weekday. */
+  /** Click on a day in a week whose deep-fast day(s) aren't fully decided yet, premium only —
+   *  undefined on free tier. Saving the plan is all that's needed; the day's label and the
+   *  rest of its week recompute automatically from the plans that exist. */
   onDefineDeepFastDay?: (date: ISODate) => void;
-  /** Click on a non-deep-fast day within an already-defined week, premium only — plans a
-   *  regular (shorter) fast there without touching the pattern. */
+  /** Click on a non-deep-fast day within an already-decided week, premium only — plans a
+   *  regular (shorter) fast there. */
   onPlanSupportFast?: (date: ISODate) => void;
   onEditPlan?: (plan: FastPlan) => void;
   onLogActualHours?: (plan: FastPlan) => void;
   /** Free tier — shown instead of defining/planning when the gated callbacks above are absent. */
   onLockedInteraction?: () => void;
+  /** True while the "+ Add a 2nd deep-fast day" action is armed — the next eligible click
+   *  (a support/rest day in a week that already has exactly one deep-fast day) defines that
+   *  day as the week's second deep-fast day instead of its usual behaviour. */
+  armedForSecondDeepFastDay?: boolean;
   /** Days blocked for refeeding after a 20h+ fast (see src/lib/calendar/refeed.ts). */
   refeedDays?: Record<ISODate, RefeedDayInfo>;
   onRefeedDayClick?: (date: ISODate) => void;
@@ -120,7 +122,6 @@ export function WeeklyRhythmCalendar({
   year,
   month,
   days,
-  schedule,
   todayISO,
   moonHighlights,
   onMoonHighlightClick,
@@ -131,6 +132,7 @@ export function WeeklyRhythmCalendar({
   onEditPlan,
   onLogActualHours,
   onLockedInteraction,
+  armedForSecondDeepFastDay,
   refeedDays,
   onRefeedDayClick,
   occupiedDays,
@@ -152,36 +154,32 @@ export function WeeklyRhythmCalendar({
   const adHocLogByDate = new Map<ISODate, FastLog>();
   for (const log of fastLogs ?? []) if (!log.planId) adHocLogByDate.set(log.loggedDate, log);
 
-  const deepFastWeekdays: IsoWeekday[] = schedule
-    ? ([1, 2, 3, 4, 5, 6, 7] as IsoWeekday[]).filter((d) => schedule[d] === "deep_fasting")
-    : [];
-
-  /** A week only reads as "decided" once every one of its deep-fast days has a plan — for
-   *  4-2-1 that means both slots, not just the first one tapped, since support/nourish can't be
-   *  meaningfully implied (and the later deep-fast day still moves the nourish day) until both
-   *  are known. For 5-1-1 there's only ever one slot, so this is unchanged there. */
-  function isWeekCommitted(date: ISODate): boolean {
-    if (!schedule || deepFastWeekdays.length === 0) return false;
-    const monday = addDays(date, -(isoWeekday(date) - 1));
-    return deepFastWeekdays.every((weekday) => fastPlanByDate.has(addDays(monday, weekday - 1)));
-  }
-
   function handleCellBodyClick(date: ISODate, dayLabel: WeeklyDayLabel, existingPlan: FastPlan | undefined) {
     if (existingPlan || refeedDays?.[date] || occupiedDays?.[date]) return;
-    if (isWeekCommitted(date)) {
-      // Every deep-fast day is decided — only support days are further plannable, the nourish
-      // day is deliberately not a fasting day at all.
-      if (dayLabel !== "fasting") return;
-      if (onPlanSupportFast) onPlanSupportFast(date);
+    const weekDeepFastCount = deepFastingWeekdaysInWeek(date, fastPlans ?? []).length;
+
+    if (armedForSecondDeepFastDay) {
+      // Only a support/rest day in a week that already has exactly one deep-fast day is a
+      // valid target — anything else is a no-op so a stray tap can't reassign an already-
+      // decided day or silently do something in an unrelated week.
+      if (weekDeepFastCount === 1 && dayLabel !== "deep_fasting") {
+        if (onDefineDeepFastDay) onDefineDeepFastDay(date);
+        else onLockedInteraction?.();
+      }
+      return;
+    }
+
+    if (weekDeepFastCount === 0) {
+      // Nothing chosen yet this week — any day can become its deep-fast day.
+      if (onDefineDeepFastDay) onDefineDeepFastDay(date);
       else onLockedInteraction?.();
       return;
     }
-    // Week isn't fully decided yet (for 4-2-1, that can mean zero or one of the two deep-fast
-    // days is planned) — any undecided day in the week is fair game to become the next deep-fast
-    // day, not just the one the current pattern happens to be pointing at. The view layer is
-    // responsible for reassigning the pattern to whichever slot is still unplanned, so an
-    // already-planned deep-fast day is never the one that gets moved.
-    if (onDefineDeepFastDay) onDefineDeepFastDay(date);
+
+    // This week's deep-fast day (or days) are already decided — only support days are further
+    // plannable, the nourish day is deliberately not a fasting day at all.
+    if (dayLabel !== "fasting") return;
+    if (onPlanSupportFast) onPlanSupportFast(date);
     else onLockedInteraction?.();
   }
 
@@ -198,13 +196,9 @@ export function WeeklyRhythmCalendar({
         {cells.map((date, i) => {
           if (!date) return <div key={`blank-${i}`} />;
 
-          const dayLabel: WeeklyDayLabel = schedule ? getWeeklyRhythmDayLabel(date, schedule) : "unplanned";
-          const committed = isWeekCommitted(date);
+          const dayLabel: WeeklyDayLabel = getWeeklyDayLabel(date, fastPlans ?? []);
           const existingPlan = fastPlanByDate.get(date);
-          // A deep-fast slot only reads as "decided" once it has its own plan (matters for
-          // 4-2-1's second slot, which can otherwise sit unplanned in an already-committed
-          // week) — every other label just follows the week's overall committed state.
-          const isDecided = dayLabel === "deep_fasting" ? !!existingPlan : committed;
+          const isDecided = dayLabel !== "unplanned";
           const style = isDecided ? DAY_STYLES[dayLabel] : PLAIN_STYLE;
           const isToday = date === todayISO;
           const dayNumber = Number(date.slice(8, 10));

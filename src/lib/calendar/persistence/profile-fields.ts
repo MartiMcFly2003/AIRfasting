@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Track, WeeklyRhythmSelection } from "@/lib/calendar";
+import type { Track } from "@/lib/calendar";
 import type { PauseReason } from "@/components/calendar/PauseDialogs";
 
 export async function saveTrack(userId: string, track: Track): Promise<void> {
@@ -18,22 +18,6 @@ export async function savePauseState(
   const { error } = await supabase
     .from("user_profiles")
     .update({ paused_reason: pause?.reason ?? null })
-    .eq("user_id", userId);
-  if (error) throw error;
-}
-
-export async function saveWeeklyRhythmSelection(
-  userId: string,
-  selection: WeeklyRhythmSelection,
-): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from("user_profiles")
-    .update({
-      weekly_rhythm: selection.rhythm,
-      weekly_rhythm_fasting_days: selection.fastingDays,
-      weekly_rhythm_deep_fasting_days: selection.deepFastingDays,
-    })
     .eq("user_id", userId);
   if (error) throw error;
 }

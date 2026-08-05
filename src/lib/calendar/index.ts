@@ -20,13 +20,7 @@ export {
 } from "./protocol1-menstrual";
 export { getMoonSyncDayInfo, getMoonSyncPhaseBlocks } from "./protocol2-moon-sync";
 export { getMostRecentNewMoon, SYNODIC_MONTH_DAYS } from "./moon";
-export {
-  getWeeklyRhythmSchedule,
-  getWeeklyRhythmDayLabel,
-  moveDeepFastingDay,
-  FIXED_WEEKLY_RHYTHM_PATTERNS,
-} from "./protocol3-weekly-rhythm";
-export type { WeeklyRhythmSelection } from "./protocol3-weekly-rhythm";
+export { getWeeklyDayLabel, deepFastingWeekdaysInWeek } from "./protocol3-weekly-rhythm";
 
 import { getMenstrualDayInfo, getMenstrualPhaseBlocks } from "./protocol1-menstrual";
 import { getMoonSyncDayInfo, getMoonSyncPhaseBlocks } from "./protocol2-moon-sync";
@@ -55,8 +49,8 @@ interface MenstrualCycleParams {
 
 /**
  * Unified accessor for the two colour-band protocols (1 & 2). Weekly rhythm (Protocol 3)
- * isn't covered here — it has no bands and needs a WeeklyRhythmSelection the caller
- * supplies separately via getWeeklyRhythmSchedule.
+ * isn't covered here — it has no bands; its day labels come from getWeeklyDayLabel instead,
+ * derived directly from that week's fast plans.
  */
 export function getPhaseDayInfo(
   date: ISODate,

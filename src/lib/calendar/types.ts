@@ -31,8 +31,6 @@ export interface PhaseBlock {
 /** Protocol 3 (weekly rhythm) day types. Distinct from PhaseBlockName — no colour bands, per-day only. */
 export type WeeklyDayLabel = "fasting" | "deep_fasting" | "rest" | "unplanned";
 
-export type WeeklyRhythm = "5-1-1" | "4-2-1";
-
 /** ISO weekday numbering: 1 = Monday ... 7 = Sunday. */
 export type IsoWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
