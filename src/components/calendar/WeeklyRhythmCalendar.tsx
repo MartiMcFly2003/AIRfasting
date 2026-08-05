@@ -166,27 +166,8 @@ export function WeeklyRhythmCalendar({
     return deepFastWeekdays.every((weekday) => fastPlanByDate.has(addDays(monday, weekday - 1)));
   }
 
-  /** True once at least one (but not necessarily all) of the week's deep-fast days has a plan —
-   *  distinct from isWeekCommitted so a half-defined 4-2-1 week (one slot planned, one still
-   *  open) doesn't let a click on some other day reassign the pattern and strand the already-
-   *  planned slot. */
-  function isWeekStarted(date: ISODate): boolean {
-    if (!schedule || deepFastWeekdays.length === 0) return false;
-    const monday = addDays(date, -(isoWeekday(date) - 1));
-    return deepFastWeekdays.some((weekday) => fastPlanByDate.has(addDays(monday, weekday - 1)));
-  }
-
   function handleCellBodyClick(date: ISODate, dayLabel: WeeklyDayLabel, existingPlan: FastPlan | undefined) {
     if (existingPlan || refeedDays?.[date] || occupiedDays?.[date]) return;
-    // An unfilled deep-fast slot is always open to defining, regardless of whether the week is
-    // otherwise decided — this matters for 4-2-1, where the first tap fills one of the two
-    // deep-fast days and the second slot (already schedule-designated, just not planned yet)
-    // needs to stay reachable rather than getting stuck once the week reads as "committed".
-    if (dayLabel === "deep_fasting") {
-      if (onDefineDeepFastDay) onDefineDeepFastDay(date);
-      else onLockedInteraction?.();
-      return;
-    }
     if (isWeekCommitted(date)) {
       // Every deep-fast day is decided — only support days are further plannable, the nourish
       // day is deliberately not a fasting day at all.
@@ -195,14 +176,11 @@ export function WeeklyRhythmCalendar({
       else onLockedInteraction?.();
       return;
     }
-    if (isWeekStarted(date)) {
-      // One deep-fast day is already planned but (for 4-2-1) the other isn't yet — until it is,
-      // support/nourish can't be shown or planned, and this day mustn't be turned into a
-      // replacement deep-fast day either, since that would strand the plan already sitting on
-      // the first slot. Nothing to do here until the remaining deep-fast day is defined.
-      return;
-    }
-    // Nothing chosen yet anywhere in the week — any day can become the deep-fast day.
+    // Week isn't fully decided yet (for 4-2-1, that can mean zero or one of the two deep-fast
+    // days is planned) — any undecided day in the week is fair game to become the next deep-fast
+    // day, not just the one the current pattern happens to be pointing at. The view layer is
+    // responsible for reassigning the pattern to whichever slot is still unplanned, so an
+    // already-planned deep-fast day is never the one that gets moved.
     if (onDefineDeepFastDay) onDefineDeepFastDay(date);
     else onLockedInteraction?.();
   }

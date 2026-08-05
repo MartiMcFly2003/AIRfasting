@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  addDays,
   daysInMonth,
   eachDate,
   getWeeklyRhythmDayLabel,
@@ -81,6 +82,17 @@ function closestWeekday(candidates: IsoWeekday[], target: IsoWeekday): IsoWeekda
     const distDay = Math.min(Math.abs(day - target), 7 - Math.abs(day - target));
     return distDay < distBest ? day : best;
   });
+}
+
+/** Which of `deepFastingDays` already has a saved plan within the week containing `date` —
+ *  used so reassigning the pattern when a new deep-fast day is chosen never picks a slot that's
+ *  already planned. Without this, 4-2-1's closest-weekday heuristic could reassign the day the
+ *  person already committed to (the one with the plan) instead of the still-open second slot,
+ *  stranding that plan on a weekday the pattern no longer labels as deep-fasting. */
+function plannedDeepFastingWeekdays(date: ISODate, deepFastingDays: IsoWeekday[], fastPlans: FastPlan[]): IsoWeekday[] {
+  const monday = addDays(date, -(isoWeekday(date) - 1));
+  const plannedDates = new Set(fastPlans.map((p) => p.plannedDate));
+  return deepFastingDays.filter((weekday) => plannedDates.has(addDays(monday, weekday - 1)));
 }
 
 /**
@@ -190,7 +202,11 @@ export function WeeklyRhythmCalendarView({
     confirmPlan({ dates: dialog.dates, existingPlan: dialog.existingPlan, fastType, plannedHours, startTime });
     if (dialog.isDefiningDeepFast) {
       const toDay = isoWeekday(dialog.dates[0]);
-      const fromDay = closestWeekday(selection.deepFastingDays, toDay);
+      // Only reassign among slots that aren't already planned — otherwise the closest-weekday
+      // heuristic could move away the deep-fast day the person already committed to.
+      const planned = plannedDeepFastingWeekdays(dialog.dates[0], selection.deepFastingDays, fastPlans);
+      const unplanned = selection.deepFastingDays.filter((d) => !planned.includes(d));
+      const fromDay = closestWeekday(unplanned.length > 0 ? unplanned : selection.deepFastingDays, toDay);
       onSelectionChange(moveDeepFastingDay(selection, fromDay, toDay));
     }
     setDialog({ step: "none" });
