@@ -21,6 +21,7 @@ import {
   type RefeedDayInfo,
 } from "@/lib/calendar/refeed";
 import { useFastPlanCrud } from "@/lib/calendar/use-fast-plan-crud";
+import { CycleInstructions } from "./CycleInstructions";
 import { FastContinuationDialog, LogActualHoursDialog, PlanFastDialog, RefeedInfoDialog } from "./FastPlanDialogs";
 import { MonthCalendar, PhaseLegend, PHASE_LABELS } from "./MonthCalendar";
 import { MoonHighlightDialog } from "./MoonHighlightDialog";
@@ -272,6 +273,8 @@ export function CalendarView({
 
   return (
     <>
+      <CycleInstructions />
+
       <MonthCalendar
         year={viewedMonth.year}
         month={viewedMonth.month}
