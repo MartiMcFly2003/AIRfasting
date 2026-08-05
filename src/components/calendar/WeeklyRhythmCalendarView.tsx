@@ -230,6 +230,12 @@ export function WeeklyRhythmCalendarView({
     setDialog({ step: "none" });
   }
 
+  function handleDeletePlanFromLog() {
+    if (dialog.step !== "logActual") return;
+    removePlan(dialog.plan.id);
+    setDialog({ step: "none" });
+  }
+
   return (
     <>
       <WeeklyRhythmPicker rhythm={selection.rhythm} onChange={handleRhythmChange} />
@@ -317,6 +323,7 @@ export function WeeklyRhythmCalendarView({
           existingLog={dialog.existingLog}
           onConfirm={handleConfirmLog}
           onRemove={dialog.existingLog ? handleRemoveLog : undefined}
+          onDeletePlan={handleDeletePlanFromLog}
           onCancel={() => setDialog({ step: "none" })}
         />
       )}

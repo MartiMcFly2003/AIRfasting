@@ -264,6 +264,12 @@ export function CalendarView({
     setDialog({ step: "none" });
   }
 
+  function handleDeletePlanFromLog() {
+    if (dialog.step !== "logActual") return;
+    removePlan(dialog.plan.id);
+    setDialog({ step: "none" });
+  }
+
   return (
     <>
       <MonthCalendar
@@ -384,6 +390,7 @@ export function CalendarView({
           existingLog={dialog.existingLog}
           onConfirm={handleConfirmLog}
           onRemove={dialog.existingLog ? handleRemoveLog : undefined}
+          onDeletePlan={handleDeletePlanFromLog}
           onCancel={() => setDialog({ step: "none" })}
         />
       )}

@@ -209,6 +209,12 @@ export function MoonSyncCalendarView({
     setDialog({ step: "none" });
   }
 
+  function handleDeletePlanFromLog() {
+    if (dialog.step !== "logActual") return;
+    removePlan(dialog.plan.id);
+    setDialog({ step: "none" });
+  }
+
   return (
     <>
       <MoonSyncInstructions />
@@ -331,6 +337,7 @@ export function MoonSyncCalendarView({
           existingLog={dialog.existingLog}
           onConfirm={handleConfirmLogHours}
           onRemove={dialog.existingLog ? handleRemoveLog : undefined}
+          onDeletePlan={handleDeletePlanFromLog}
           onCancel={() => setDialog({ step: "none" })}
         />
       )}

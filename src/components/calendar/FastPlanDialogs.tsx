@@ -208,7 +208,7 @@ export function PlanFastDialog({
         <PrimaryButton onClick={handleSaveClick} disabled={!canSave}>
           Save plan
         </PrimaryButton>
-        {onRemove && <SecondaryButton onClick={onRemove}>Remove plan</SecondaryButton>}
+        {onRemove && <SecondaryButton onClick={onRemove}>Delete fast</SecondaryButton>}
         <CancelLink onClick={onCancel}>Cancel</CancelLink>
       </div>
     </DialogShell>
@@ -290,11 +290,24 @@ export interface LogActualHoursDialogProps {
   plan: FastPlan;
   existingLog?: FastLog;
   onConfirm: (actualMinutes: number) => void;
+  /** Clears just the logged actual-hours entry, leaving the underlying plan (and its date)
+   *  in place — only offered once a log actually exists to remove. */
   onRemove?: () => void;
+  /** Deletes the underlying plan itself (and any log on it) — offered regardless of whether
+   *  it's been logged yet, since a planned-but-unlogged past/today fast otherwise has no way
+   *  to be removed from here at all. */
+  onDeletePlan?: () => void;
   onCancel: () => void;
 }
 
-export function LogActualHoursDialog({ plan, existingLog, onConfirm, onRemove, onCancel }: LogActualHoursDialogProps) {
+export function LogActualHoursDialog({
+  plan,
+  existingLog,
+  onConfirm,
+  onRemove,
+  onDeletePlan,
+  onCancel,
+}: LogActualHoursDialogProps) {
   const initialMinutes = existingLog?.actualMinutes ?? 0;
   const [hours, setHours] = useState(String(Math.floor(initialMinutes / 60)));
   const [minutes, setMinutes] = useState(String(initialMinutes % 60));
@@ -342,6 +355,7 @@ export function LogActualHoursDialog({ plan, existingLog, onConfirm, onRemove, o
       <div className="mt-5 flex flex-col gap-2">
         <PrimaryButton onClick={handleSave}>Save</PrimaryButton>
         {onRemove && <SecondaryButton onClick={onRemove}>Remove log</SecondaryButton>}
+        {onDeletePlan && <SecondaryButton onClick={onDeletePlan}>Delete fast</SecondaryButton>}
         <CancelLink onClick={onCancel}>Cancel</CancelLink>
       </div>
     </DialogShell>
