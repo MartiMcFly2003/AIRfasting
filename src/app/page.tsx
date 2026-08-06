@@ -12,7 +12,10 @@ const PHASE_PILLS: { block: PhaseBlockName; bg: string }[] = [
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-      <h1 className="font-heading text-5xl tracking-wide text-ivory">AIRfasting</h1>
+      <h1 className="font-heading text-ivory">
+        <span className="text-5xl tracking-wide">AIR</span>
+        <span className="ml-1 text-base tracking-wider text-silver">fasting</span>
+      </h1>
       <p className="max-w-md font-body text-lg text-silver">
         A cycle-aware fasting calendar &mdash; plan and track fasting days
         around natural cycles and your own body&rsquo;s rhythm, whatever
