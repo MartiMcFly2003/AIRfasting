@@ -14,8 +14,9 @@ export default function Home() {
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
       <h1 className="font-heading text-5xl tracking-wide text-ivory">AIRfasting</h1>
       <p className="max-w-md font-body text-lg text-silver">
-        A cycle-aware fasting calendar &mdash; plan fasting days around your
-        body&rsquo;s rhythm, whatever stage of life you&rsquo;re in.
+        A cycle-aware fasting calendar &mdash; plan and track fasting days
+        around natural cycles and your own body&rsquo;s rhythm, whatever
+        stage of life you&rsquo;re in.
       </p>
       <div aria-hidden="true" className="flex gap-3 pt-4">
         {PHASE_PILLS.map(({ block, bg }) => {
