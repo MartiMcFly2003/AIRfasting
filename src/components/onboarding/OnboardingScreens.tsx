@@ -358,6 +358,7 @@ export function SafetyGateScreen({ answers, onChange }: ScreenProps) {
 }
 
 const GOAL_OPTIONS: { value: Goal; label: string }[] = [
+  { value: "weight_loss", label: "Weight loss" },
   { value: "hormonal_balance", label: "Hormonal balance" },
   { value: "cycle_awareness", label: "Cycle awareness" },
   { value: "spiritual_practice", label: "Spiritual practice" },

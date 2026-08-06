@@ -15,6 +15,7 @@ export type HealthCondition =
   | "other"
   | "none";
 export type Goal =
+  | "weight_loss"
   | "hormonal_balance"
   | "cycle_awareness"
   | "spiritual_practice"
