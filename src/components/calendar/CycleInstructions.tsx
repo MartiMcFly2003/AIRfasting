@@ -25,6 +25,7 @@ const CYCLE_COPY: string[] = [
   "Tap any Rise (yellow) or Radiate (coral) day directly to plan a fast — set the type, start time and length.",
   "Future months are forecasted from your average cycle length. When your next predicted period arrives, tap it to confirm the actual date — or pick an earlier one if it started sooner.",
   "If a period lands on a different day than predicted, you'll be asked whether to treat it as a one-off or update your average cycle length going forward.",
+  "Want to fast on a Bloom or Rest day anyway? \"Plan a fast outside my rhythm\" below the calendar lets you pick any date and time.",
   "Look out for the small moon marker on some days — new moon, full moon and Ekadashi are traditionally considered favourable for fasting; if they fall into a window which is not recommended for fasting you can also choose to eat light and avoid grains on these days.",
 ];
 

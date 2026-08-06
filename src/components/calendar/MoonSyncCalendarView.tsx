@@ -65,10 +65,12 @@ type DialogState =
       existingPlan?: FastPlan;
       initialFastType?: FastType;
       minStartTime?: string;
+      bodyOverride?: string;
     }
   | { step: "logActual"; plan: FastPlan; existingLog?: FastLog }
   | { step: "refeedInfo"; date: ISODate; info: RefeedDayInfo }
   | { step: "occupiedInfo"; date: ISODate; info: FastOccupiedInfo }
+  | { step: "chooseOutsideDate" }
   | { step: "upsell"; message: string };
 
 /**
@@ -185,6 +187,42 @@ export function MoonSyncCalendarView({
     if (plan) handleEditPlan(plan);
   }
 
+  function handleOpenOutsideRhythm() {
+    if (tier !== "premium") {
+      setDialog({ step: "upsell", message: "Planning fasting days ahead is a Premium feature." });
+      return;
+    }
+    setDialog({ step: "chooseOutsideDate" });
+  }
+
+  // Routes a manually-picked date through the same checks a calendar tap would've hit —
+  // an existing plan is edited rather than duplicated, and refeed/occupied days still explain
+  // themselves rather than silently allowing a conflicting plan.
+  function handleOutsideDateChosen(date: ISODate) {
+    const existingPlan = fastPlans.find((p) => p.plannedDate === date);
+    if (existingPlan) {
+      handleEditPlan(existingPlan);
+      return;
+    }
+    const refeedInfo = refeedDays[date];
+    if (refeedInfo) {
+      setDialog({ step: "refeedInfo", date, info: refeedInfo });
+      return;
+    }
+    const occupiedInfo = occupiedDays[date];
+    if (occupiedInfo) {
+      setDialog({ step: "occupiedInfo", date, info: occupiedInfo });
+      return;
+    }
+    setDialog({
+      step: "planFast",
+      dates: [date],
+      blockLabel: "",
+      bodyOverride:
+        "This day sits outside your usual fasting-supportive windows — your choice to fast here anyway.",
+    });
+  }
+
   function handleConfirmPlan(fastType: FastType, plannedHours: number, startTime: string) {
     if (dialog.step !== "planFast") return;
     confirmPlan({ dates: dialog.dates, existingPlan: dialog.existingPlan, fastType, plannedHours, startTime });
@@ -260,6 +298,14 @@ export function MoonSyncCalendarView({
 
       <PhaseLegend />
 
+      <button
+        type="button"
+        onClick={handleOpenOutsideRhythm}
+        className="font-accent text-xs text-silver hover:text-ivory hover:underline"
+      >
+        Plan a fast outside my rhythm
+      </button>
+
       {todayBlock && <PhaseFoodTipPanel block={todayBlock} tip={content[`food_${todayBlock}`]} />}
 
       {dialog.step === "log" && (
@@ -291,6 +337,19 @@ export function MoonSyncCalendarView({
         />
       )}
 
+      {dialog.step === "chooseOutsideDate" && (
+        <DateEntryDialog
+          title="Plan a fast outside my rhythm"
+          description="Pick any date — even outside your usual fasting-supportive days."
+          initialDate={todayISO ?? todayAsISODate()}
+          min={addDays(todayISO ?? todayAsISODate(), -365)}
+          max={addDays(todayISO ?? todayAsISODate(), 365)}
+          confirmLabel="Next"
+          onConfirm={handleOutsideDateChosen}
+          onCancel={() => setDialog({ step: "none" })}
+        />
+      )}
+
       {dialog.step === "planFast" && (
         <PlanFastDialog
           dates={dialog.dates}
@@ -298,6 +357,7 @@ export function MoonSyncCalendarView({
           existingPlan={dialog.existingPlan}
           initialFastType={dialog.initialFastType}
           minStartTime={dialog.minStartTime}
+          bodyOverride={dialog.bodyOverride}
           durationTip={content["education_duration"]}
           onConfirm={handleConfirmPlan}
           onRemove={dialog.existingPlan ? handleRemovePlan : undefined}

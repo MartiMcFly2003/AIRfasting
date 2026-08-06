@@ -81,6 +81,10 @@ export interface PlanFastDialogProps {
   minStartTime?: string;
   /** Contextual copy on typical fast durations — informational only, shown to every tier. */
   durationTip?: string;
+  /** Replaces the default "A {blockLabel} day — fasting is supportive here" body copy — used
+   *  when planning a date that isn't a fasting-supportive day at all (the "outside my rhythm"
+   *  flow), where that default sentence wouldn't be accurate. */
+  bodyOverride?: string;
   onConfirm: (fastType: FastType, plannedHours: number, startTime: string) => void;
   onRemove?: () => void;
   onCancel: () => void;
@@ -93,6 +97,7 @@ export function PlanFastDialog({
   initialFastType,
   minStartTime,
   durationTip,
+  bodyOverride,
   onConfirm,
   onRemove,
   onCancel,
@@ -150,9 +155,11 @@ export function PlanFastDialog({
         {existingPlan ? "Edit your planned fast" : `Plan a fast — ${dateRangeLabel(dates)}`}
       </DialogTitle>
       <DialogBody>
-        {dates.length > 1
-          ? `Applies the same choice to all ${dates.length} selected ${blockLabel} days.`
-          : `A ${blockLabel} day — fasting is supportive here if you'd like to plan one.`}
+        {bodyOverride
+          ? bodyOverride
+          : dates.length > 1
+            ? `Applies the same choice to all ${dates.length} selected ${blockLabel} days.`
+            : `A ${blockLabel} day — fasting is supportive here if you'd like to plan one.`}
       </DialogBody>
 
       <div className="mt-4 flex gap-2">
