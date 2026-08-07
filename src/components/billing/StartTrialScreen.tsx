@@ -29,7 +29,8 @@ export function StartTrialScreen() {
       <h1 className="font-heading text-2xl tracking-wide text-ivory">Try Premium free for 30 days</h1>
       <p className="mt-3 font-body text-sm leading-relaxed text-silver">
         Plan fasting days ahead, customize your weekly rhythm, and track your progress over time. Credit or
-        debit card required to start — cancel anytime before the trial ends and you won&apos;t be charged.
+        debit card or PayPal required to start — cancel anytime before the trial ends and you won&apos;t be
+        charged.
       </p>
 
       {error && <InlineError>{error}</InlineError>}
