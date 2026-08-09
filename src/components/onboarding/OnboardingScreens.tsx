@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { DialogBody, DialogShell, DialogTitle, PrimaryButton } from "@/components/calendar/DialogPrimitives";
+import {
+  DialogBody,
+  DialogShell,
+  DialogTitle,
+  PrimaryButton,
+  SecondaryButton,
+} from "@/components/calendar/DialogPrimitives";
 import type { Goal, HealthCondition, OnboardingAnswers } from "@/lib/onboarding/types";
 import { ChoiceButton, InlineError } from "./OnboardingPrimitives";
 
@@ -257,7 +263,7 @@ const HEALTH_CONDITION_OPTIONS: { value: HealthCondition; label: string }[] = [
   { value: "none", label: "None of these" },
 ];
 
-const PREGNANCY_OPTIONS: { value: NonNullable<OnboardingAnswers["pregnancyOrTryingToConceive"]>; label: string }[] = [
+const PREGNANCY_OPTIONS: { value: NonNullable<OnboardingAnswers["pregnant"]>; label: string }[] = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
 ];
@@ -328,14 +334,26 @@ export function SafetyGateScreen({ answers, onChange }: ScreenProps) {
 
       {showsPregnancyQuestion && (
         <>
-          <p className={`mt-4 ${FIELD_LABEL}`}>Are you currently pregnant, or trying to conceive?</p>
+          <p className={`mt-4 ${FIELD_LABEL}`}>Are you currently pregnant?</p>
           <div className="mt-2 flex flex-col gap-2">
             {PREGNANCY_OPTIONS.map((opt) => (
               <ChoiceButton
                 key={opt.value}
                 label={opt.label}
-                selected={answers.pregnancyOrTryingToConceive === opt.value}
-                onSelect={() => onChange({ pregnancyOrTryingToConceive: opt.value })}
+                selected={answers.pregnant === opt.value}
+                onSelect={() => onChange({ pregnant: opt.value })}
+              />
+            ))}
+          </div>
+
+          <p className={`mt-4 ${FIELD_LABEL}`}>Are you currently trying to conceive?</p>
+          <div className="mt-2 flex flex-col gap-2">
+            {PREGNANCY_OPTIONS.map((opt) => (
+              <ChoiceButton
+                key={opt.value}
+                label={opt.label}
+                selected={answers.tryingToConceive === opt.value}
+                onSelect={() => onChange({ tryingToConceive: opt.value })}
               />
             ))}
           </div>
@@ -367,29 +385,34 @@ const GOAL_OPTIONS: { value: Goal; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-export interface CoachGateScreenProps {
-  onConfirmCoachSupport: () => void;
+export interface SafetyOverrideScreenProps {
+  body: string;
+  /** 1 button for a straightforward self-attestation (ED/binge); 2 for a softer nudge where
+   *  "I haven't yet, but let me see my plan anyway" is also a reasonable answer (trying to
+   *  conceive). The last one listed renders as the SecondaryButton (outline) style. */
+  buttons: { label: string; onClick: () => void }[];
 }
 
-/** Shown in place of the wizard's normal screens when the safety gate (ED/binge answers)
- *  triggers — unlike the pregnancy gate (a hard medical contraindication with no override),
- *  someone already working with a coach can self-attest and continue past this screen. */
-export function CoachGateScreen({ onConfirmCoachSupport }: CoachGateScreenProps) {
+/** Shown in place of the wizard's normal screens when a soft safety gate triggers — unlike the
+ *  pregnancy gate (a hard medical contraindication with no override), these are all cases where
+ *  self-attesting lets someone continue past this screen. */
+export function SafetyOverrideScreen({ body, buttons }: SafetyOverrideScreenProps) {
   return (
     <>
       <DialogTitle>Let&apos;s take care of this first</DialogTitle>
-      <DialogBody>
-        Thank you for being honest with us. Based on what you shared, we&apos;d rather start with
-        a real conversation than a calendar. AIRfasting works best alongside proper support when
-        food and fasting have felt complicated before. We advise you to get in touch with a
-        fasting or nutritional coach first, to get support and additional direction during your
-        individual journey.
-      </DialogBody>
+      <DialogBody>{body}</DialogBody>
       <div className="mt-5 flex flex-col gap-2">
-        <PrimaryButton onClick={onConfirmCoachSupport}>
-          I&apos;m currently receiving and/or recently received coach support to help guide my
-          fasting
-        </PrimaryButton>
+        {buttons.map((b, i) =>
+          i === buttons.length - 1 && buttons.length > 1 ? (
+            <SecondaryButton key={b.label} onClick={b.onClick}>
+              {b.label}
+            </SecondaryButton>
+          ) : (
+            <PrimaryButton key={b.label} onClick={b.onClick}>
+              {b.label}
+            </PrimaryButton>
+          ),
+        )}
         <Link
           href="/"
           className="mt-1 w-full text-center font-accent text-xs text-silver hover:text-ivory hover:underline"

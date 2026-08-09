@@ -9,14 +9,32 @@ import { consumeSignupOptIns } from "@/lib/onboarding/signup-optins";
 import type { OnboardingAnswers } from "@/lib/onboarding/types";
 import { InlineError, OnboardingShell, ProgressDots } from "./OnboardingPrimitives";
 import {
-  CoachGateScreen,
   ConsentScreen,
   CycleStatusScreen,
   FastingExperienceScreen,
   GoalsScreen,
   IdentityScreen,
   SafetyGateScreen,
+  SafetyOverrideScreen,
 } from "./OnboardingScreens";
+
+type GateReason = "ed_binge" | "trying_to_conceive";
+
+const GATE_COPY: Record<GateReason, { body: string; buttonLabels: string[] }> = {
+  ed_binge: {
+    body: "Thank you for being honest with us. Based on what you shared, we'd rather start with a real conversation than a calendar. AIRfasting works best alongside proper support when food and fasting have felt complicated before. We advise you to get in touch with a fasting or nutritional coach first, to get support and additional direction during your individual journey.",
+    buttonLabels: [
+      "I'm currently receiving and/or recently received coach support to help guide my fasting",
+    ],
+  },
+  trying_to_conceive: {
+    body: "Thank you for letting us know you're trying to conceive. Fasting can still be part of your routine for many people in this phase, but we'd recommend looping in a fasting or nutritional coach to help make sure your plan is optimally supporting you right now.",
+    buttonLabels: [
+      "I'm currently receiving and/or recently received coach support to help guide my fasting",
+      "I haven't been in contact yet but show me my plan that I can discuss it with a coach",
+    ],
+  },
+};
 
 type ScreenId = "consent" | "identity" | "cycle" | "fasting" | "safety" | "goals";
 
@@ -48,7 +66,7 @@ function canProceed(screen: ScreenId, a: OnboardingAnswers): boolean {
         a.bingeEating != null &&
         a.healthConditions != null &&
         a.healthConditions.length > 0 &&
-        (!showsPregnancyQuestion || a.pregnancyOrTryingToConceive != null)
+        (!showsPregnancyQuestion || (a.pregnant != null && a.tryingToConceive != null))
       );
     }
     case "goals":
@@ -72,7 +90,7 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [coachGate, setCoachGate] = useState(false);
+  const [gateReason, setGateReason] = useState<GateReason | null>(null);
 
   const screens = visibleScreens(answers);
   const currentScreen = screens[stepIndex];
@@ -90,13 +108,19 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
         bingeEating: answers.bingeEating!,
       });
       if (gated) {
-        setCoachGate(true);
+        setGateReason("ed_binge");
         return;
       }
-      // Pregnancy and actively trying to conceive are a hard contraindication for fasting,
-      // not just a "start light" caution — same no-calendar treatment as the ED/binge gate.
-      if (answers.pregnancyOrTryingToConceive === "yes") {
+      // Pregnancy is a genuine medical contraindication for fasting — a hard stop with no
+      // override, unlike every other case on this screen.
+      if (answers.pregnant === "yes") {
         router.push("/protocol-0?reason=pregnancy");
+        return;
+      }
+      // Trying to conceive isn't a contraindication the way pregnancy is — it's a softer nudge
+      // toward coach support, so it gets the same self-attestation treatment as the ED/binge gate.
+      if (answers.tryingToConceive === "yes") {
+        setGateReason("trying_to_conceive");
         return;
       }
     }
@@ -122,9 +146,11 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
     setStepIndex((i) => Math.max(0, i - 1));
   }
 
-  function handleConfirmCoachSupport() {
-    patch({ coachSupportConfirmed: true });
-    setCoachGate(false);
+  function handleProceedPastGate() {
+    // Only the ED/binge gate is tied to the profile's professional_guided flag — trying-to-conceive
+    // never touched track derivation in the first place, so there's nothing to bypass there.
+    if (gateReason === "ed_binge") patch({ coachSupportConfirmed: true });
+    setGateReason(null);
     setStepIndex((i) => i + 1);
   }
 
@@ -132,8 +158,14 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
     <OnboardingShell>
       <ProgressDots total={screens.length} current={stepIndex} />
 
-      {coachGate ? (
-        <CoachGateScreen onConfirmCoachSupport={handleConfirmCoachSupport} />
+      {gateReason ? (
+        <SafetyOverrideScreen
+          body={GATE_COPY[gateReason].body}
+          buttons={GATE_COPY[gateReason].buttonLabels.map((label) => ({
+            label,
+            onClick: handleProceedPastGate,
+          }))}
+        />
       ) : (
         <>
           {currentScreen === "consent" && <ConsentScreen answers={answers} onChange={patch} />}

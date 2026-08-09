@@ -39,9 +39,10 @@ export interface OnboardingAnswers {
   edHistory?: EdHistory;
   bingeEating?: BingeEating;
   healthConditions?: HealthCondition[];
-  /** Hard-blocks calendar generation (like the ED/binge gate) — pregnancy and actively trying
-   *  to conceive are contraindications for fasting, not just a "start light" caution. */
-  pregnancyOrTryingToConceive?: YesNo;
+  /** Hard-blocks calendar generation, no override — a genuine medical contraindication. */
+  pregnant?: YesNo;
+  /** Soft gate like the ED/binge one — nudges toward a coach but doesn't block. */
+  tryingToConceive?: YesNo;
   /** Set when the wizard's CoachGateScreen self-attestation button is clicked — overrides the
    *  ED/binge safety gate so build-profile.ts's re-computation of it doesn't re-block the same
    *  person who already confirmed they have coach support. */
