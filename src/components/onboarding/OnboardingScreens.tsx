@@ -367,6 +367,40 @@ const GOAL_OPTIONS: { value: Goal; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
+export interface CoachGateScreenProps {
+  onConfirmCoachSupport: () => void;
+}
+
+/** Shown in place of the wizard's normal screens when the safety gate (ED/binge answers)
+ *  triggers — unlike the pregnancy gate (a hard medical contraindication with no override),
+ *  someone already working with a coach can self-attest and continue past this screen. */
+export function CoachGateScreen({ onConfirmCoachSupport }: CoachGateScreenProps) {
+  return (
+    <>
+      <DialogTitle>Let&apos;s take care of this first</DialogTitle>
+      <DialogBody>
+        Thank you for being honest with us. Based on what you shared, we&apos;d rather start with
+        a real conversation than a calendar. AIRfasting works best alongside proper support when
+        food and fasting have felt complicated before. We advise you to get in touch with a
+        fasting or nutritional coach first, to get support and additional direction during your
+        individual journey.
+      </DialogBody>
+      <div className="mt-5 flex flex-col gap-2">
+        <PrimaryButton onClick={onConfirmCoachSupport}>
+          I&apos;m currently receiving and/or recently received coach support to help guide my
+          fasting
+        </PrimaryButton>
+        <Link
+          href="/"
+          className="mt-1 w-full text-center font-accent text-xs text-silver hover:text-ivory hover:underline"
+        >
+          Back to home
+        </Link>
+      </div>
+    </>
+  );
+}
+
 export function GoalsScreen({ answers, onChange }: ScreenProps) {
   const goals = answers.goals ?? [];
 

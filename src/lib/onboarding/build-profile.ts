@@ -7,10 +7,12 @@ import type { OnboardingAnswers } from "./types";
  * completes.
  */
 export function toOnboardingProfile(answers: OnboardingAnswers): OnboardingProfile {
-  const professionalGuided = computeProfessionalGuidedGate({
-    edHistory: answers.edHistory ?? "prefer_not_to_say",
-    bingeEating: answers.bingeEating ?? "prefer_not_to_say",
-  });
+  const professionalGuided =
+    !answers.coachSupportConfirmed &&
+    computeProfessionalGuidedGate({
+      edHistory: answers.edHistory ?? "prefer_not_to_say",
+      bingeEating: answers.bingeEating ?? "prefer_not_to_say",
+    });
 
   return {
     planType: professionalGuided ? "professional_guided" : "standard",

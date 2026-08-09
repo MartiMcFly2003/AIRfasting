@@ -9,6 +9,7 @@ import { consumeSignupOptIns } from "@/lib/onboarding/signup-optins";
 import type { OnboardingAnswers } from "@/lib/onboarding/types";
 import { InlineError, OnboardingShell, ProgressDots } from "./OnboardingPrimitives";
 import {
+  CoachGateScreen,
   ConsentScreen,
   CycleStatusScreen,
   FastingExperienceScreen,
@@ -71,6 +72,7 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [coachGate, setCoachGate] = useState(false);
 
   const screens = visibleScreens(answers);
   const currentScreen = screens[stepIndex];
@@ -88,7 +90,7 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
         bingeEating: answers.bingeEating!,
       });
       if (gated) {
-        router.push("/protocol-0");
+        setCoachGate(true);
         return;
       }
       // Pregnancy and actively trying to conceive are a hard contraindication for fasting,
@@ -120,29 +122,41 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
     setStepIndex((i) => Math.max(0, i - 1));
   }
 
+  function handleConfirmCoachSupport() {
+    patch({ coachSupportConfirmed: true });
+    setCoachGate(false);
+    setStepIndex((i) => i + 1);
+  }
+
   return (
     <OnboardingShell>
       <ProgressDots total={screens.length} current={stepIndex} />
 
-      {currentScreen === "consent" && <ConsentScreen answers={answers} onChange={patch} />}
-      {currentScreen === "identity" && <IdentityScreen answers={answers} onChange={patch} />}
-      {currentScreen === "cycle" && <CycleStatusScreen answers={answers} onChange={patch} />}
-      {currentScreen === "fasting" && <FastingExperienceScreen answers={answers} onChange={patch} />}
-      {currentScreen === "safety" && <SafetyGateScreen answers={answers} onChange={patch} />}
-      {currentScreen === "goals" && <GoalsScreen answers={answers} onChange={patch} />}
+      {coachGate ? (
+        <CoachGateScreen onConfirmCoachSupport={handleConfirmCoachSupport} />
+      ) : (
+        <>
+          {currentScreen === "consent" && <ConsentScreen answers={answers} onChange={patch} />}
+          {currentScreen === "identity" && <IdentityScreen answers={answers} onChange={patch} />}
+          {currentScreen === "cycle" && <CycleStatusScreen answers={answers} onChange={patch} />}
+          {currentScreen === "fasting" && <FastingExperienceScreen answers={answers} onChange={patch} />}
+          {currentScreen === "safety" && <SafetyGateScreen answers={answers} onChange={patch} />}
+          {currentScreen === "goals" && <GoalsScreen answers={answers} onChange={patch} />}
 
-      {saveError && <InlineError>{saveError}</InlineError>}
+          {saveError && <InlineError>{saveError}</InlineError>}
 
-      <div className="mt-5 flex flex-col gap-2">
-        <PrimaryButton onClick={handleNext} disabled={!canProceed(currentScreen, answers) || saving}>
-          {saving ? "Saving…" : currentScreen === "goals" ? "See my calendar" : "Next"}
-        </PrimaryButton>
-        {stepIndex > 0 ? (
-          <SecondaryButton onClick={handleBack}>Back</SecondaryButton>
-        ) : (
-          <CancelLink onClick={() => router.push("/")}>Cancel</CancelLink>
-        )}
-      </div>
+          <div className="mt-5 flex flex-col gap-2">
+            <PrimaryButton onClick={handleNext} disabled={!canProceed(currentScreen, answers) || saving}>
+              {saving ? "Saving…" : currentScreen === "goals" ? "See my calendar" : "Next"}
+            </PrimaryButton>
+            {stepIndex > 0 ? (
+              <SecondaryButton onClick={handleBack}>Back</SecondaryButton>
+            ) : (
+              <CancelLink onClick={() => router.push("/")}>Cancel</CancelLink>
+            )}
+          </div>
+        </>
+      )}
     </OnboardingShell>
   );
 }
