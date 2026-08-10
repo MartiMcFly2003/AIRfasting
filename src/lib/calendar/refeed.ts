@@ -2,8 +2,13 @@ import { eachDate, fromUtcMs, toUtcMs } from "./date-utils";
 import type { FastLog, FastPlan, FastType } from "./fast-plans";
 import type { ISODate } from "./types";
 
-/** Fasts at or above this length need a recovery/refeed period before another fast starts. */
+/** Fasts at or above this length need a recovery/refeed period before another fast starts.
+ *  Anything shorter (an overnight fast, say) is assumed to already coincide with normal sleep
+ *  and clears on its own without a dedicated refeed window. */
 export const REFEED_THRESHOLD_HOURS = 20;
+/** Below this length, the refeed window is the same length as the fast itself. At or above it,
+ *  the body needs proportionally longer to recover, so the window doubles. */
+export const DOUBLE_REFEED_THRESHOLD_HOURS = 72;
 /** Dry fasts at or above this length require the in-app health disclaimer before saving. */
 export const DRY_DISCLAIMER_THRESHOLD_HOURS = 24;
 
@@ -145,7 +150,8 @@ export function computeRefeedDays(plans: FastPlan[], logs: FastLog[]): Record<IS
     const durationHours = (window.endMs - window.startMs) / MS_PER_HOUR;
     if (durationHours < REFEED_THRESHOLD_HOURS) continue;
 
-    const refeedEndMs = window.endMs + durationHours * 2 * MS_PER_HOUR;
+    const refeedMultiplier = durationHours >= DOUBLE_REFEED_THRESHOLD_HOURS ? 2 : 1;
+    const refeedEndMs = window.endMs + durationHours * refeedMultiplier * MS_PER_HOUR;
     const refeedUntil = fromUtcMs(refeedEndMs);
     for (const date of eachDate(fromUtcMs(window.endMs), refeedUntil)) {
       if (chosenEndMs[date] === undefined || refeedEndMs > chosenEndMs[date]) {
