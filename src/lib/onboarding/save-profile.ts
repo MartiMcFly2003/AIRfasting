@@ -46,6 +46,9 @@ export async function saveOnboardingProfile(userId: string, answers: OnboardingA
     health_data_consent_version: answers.healthDataConsent ? "v1.0" : null,
     marketing_opt_in: answers.marketingOptIn ?? false,
     notifications_opt_in: answers.notificationsOptIn ?? false,
+    // Answered deliberately on the consent screen, so the catch-up prompt on the calendar has
+    // nothing to ask these accounts.
+    notifications_prompt_answered_at: now,
   });
 
   if (error) throw error;

@@ -4,6 +4,7 @@ import { LogOutButton } from "@/components/auth/LogOutButton";
 import { ManageSubscriptionLink } from "@/components/billing/ManageSubscriptionLink";
 import { CalendarTrackManager } from "@/components/calendar/CalendarTrackManager";
 import { MonthNav } from "@/components/calendar/MonthNav";
+import { NotificationsPromptDialog } from "@/components/calendar/NotificationsPromptDialog";
 import type { PauseReason } from "@/components/calendar/PauseDialogs";
 import { TRACK_PROTOCOL, toISODate, type ISODate, type Track, type YearMonth } from "@/lib/calendar";
 import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
@@ -46,7 +47,9 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("track, last_period_date, cycle_length, paused_reason, role")
+    .select(
+      "track, last_period_date, cycle_length, paused_reason, role, notifications_prompt_answered_at",
+    )
     .eq("user_id", user.id)
     .single();
 
@@ -126,8 +129,14 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const moonHighlights = await getMoonHighlightsForMonth(viewedMonth, MOCK_LOCATION.lat, MOCK_LOCATION.lon);
   const todayISO = isCurrentMonth ? toISODate(viewedMonth, now.getUTCDate()) : undefined;
 
+  // Null only for accounts that pre-date the onboarding consent screen — everyone since has
+  // answered the question there, and saveOnboardingProfile stamps it.
+  const needsNotificationsPrompt = profile.notifications_prompt_answered_at == null;
+
   return (
     <main className="flex flex-1 flex-col items-center gap-10 px-6 py-16">
+      {needsNotificationsPrompt && <NotificationsPromptDialog userId={user.id} />}
+
       <MonthNav
         current={viewedMonth}
         monthLabel={monthLabel}

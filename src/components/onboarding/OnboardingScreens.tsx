@@ -127,8 +127,8 @@ export function ConsentScreen({ answers, onChange, gapNudge = 0 }: ConsentScreen
         <div className={gapBox(false)}>
           <p className={FIELD_LABEL}>Notifications in the app</p>
           <p className="mt-1 font-body text-sm leading-relaxed text-silver">
-            Fasting reminders for your scheduled fasts, plus trial updates. You can change
-            this any time in Settings.
+            Fasting reminders for your scheduled fasts. You can change this any time in
+            Settings.
           </p>
           <div className="mt-2 flex flex-col gap-2">
             {OPT_IN_OPTIONS.map((opt) => (
