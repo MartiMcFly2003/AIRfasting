@@ -29,7 +29,9 @@ export function ConsentScreen({ answers, onChange }: ScreenProps) {
   return (
     <>
       <DialogTitle>Before we start</DialogTitle>
-      <DialogBody>Two things we need your explicit agreement on.</DialogBody>
+      <DialogBody>
+        Two things we need your explicit agreement on, and two choices about what we send you.
+      </DialogBody>
       <div className="mt-4 flex flex-col gap-4">
         <label className="flex items-start gap-3">
           <input
@@ -76,10 +78,52 @@ export function ConsentScreen({ answers, onChange }: ScreenProps) {
             </span>
           </label>
         </div>
+
+        {/* Yes/No rather than a tickbox: an untouched checkbox can't be told apart from a
+            considered "no", and these two used to sit unnoticed on the sign-up form. The
+            wizard won't advance until both are answered. */}
+        <div>
+          <p className={FIELD_LABEL}>Notifications in the app</p>
+          <p className="mt-1 font-body text-sm leading-relaxed text-silver">
+            Fasting reminders and trial updates. You can change this any time in Settings.
+          </p>
+          <div className="mt-2 flex flex-col gap-2">
+            {OPT_IN_OPTIONS.map((opt) => (
+              <ChoiceButton
+                key={String(opt.value)}
+                label={opt.label}
+                selected={answers.notificationsOptIn === opt.value}
+                onSelect={() => onChange({ notificationsOptIn: opt.value })}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className={FIELD_LABEL}>Marketing emails</p>
+          <p className="mt-1 font-body text-sm leading-relaxed text-silver">
+            Wellness tips, product updates, and offers. You can unsubscribe at any time.
+          </p>
+          <div className="mt-2 flex flex-col gap-2">
+            {OPT_IN_OPTIONS.map((opt) => (
+              <ChoiceButton
+                key={String(opt.value)}
+                label={opt.label}
+                selected={answers.marketingOptIn === opt.value}
+                onSelect={() => onChange({ marketingOptIn: opt.value })}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </>
   );
 }
+
+const OPT_IN_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "Yes, send these" },
+  { value: false, label: "No thanks" },
+];
 
 const GENDER_OPTIONS: { value: NonNullable<OnboardingAnswers["gender"]>; label: string }[] = [
   { value: "woman", label: "Woman" },

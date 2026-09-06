@@ -48,7 +48,12 @@ function visibleScreens(answers: OnboardingAnswers): ScreenId[] {
 function canProceed(screen: ScreenId, a: OnboardingAnswers): boolean {
   switch (screen) {
     case "consent":
-      return a.termsAccepted === true && a.healthDataConsent === true;
+      return (
+        a.termsAccepted === true &&
+        a.healthDataConsent === true &&
+        a.notificationsOptIn != null &&
+        a.marketingOptIn != null
+      );
     case "identity":
       return a.gender != null && a.age != null && a.age >= 18;
     case "cycle":
@@ -75,20 +80,11 @@ function canProceed(screen: ScreenId, a: OnboardingAnswers): boolean {
 
 export interface OnboardingWizardProps {
   userId: string;
-  marketingOptIn: boolean;
-  notificationsOptIn: boolean;
 }
 
-export function OnboardingWizard({
-  userId,
-  marketingOptIn,
-  notificationsOptIn,
-}: OnboardingWizardProps) {
+export function OnboardingWizard({ userId }: OnboardingWizardProps) {
   const router = useRouter();
-  const [answers, setAnswers] = useState<OnboardingAnswers>({
-    marketingOptIn,
-    notificationsOptIn,
-  });
+  const [answers, setAnswers] = useState<OnboardingAnswers>({});
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);

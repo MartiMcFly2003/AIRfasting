@@ -11,8 +11,6 @@ export function SignUpForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [marketingOptIn, setMarketingOptIn] = useState(false);
-  const [notificationsOptIn, setNotificationsOptIn] = useState(false);
   const [status, setStatus] = useState<"idle" | "submitting" | "check-email">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -21,10 +19,7 @@ export function SignUpForm() {
     setError(null);
     setStatus("submitting");
 
-    const { data, error: signUpError } = await signUpWithPassword(email, password, {
-      marketingOptIn,
-      notificationsOptIn,
-    });
+    const { data, error: signUpError } = await signUpWithPassword(email, password);
     if (signUpError) {
       setError(signUpError.message);
       setStatus("idle");
@@ -90,30 +85,6 @@ export function SignUpForm() {
             onChange={(e) => setPassword(e.target.value)}
             className={TEXT_INPUT}
           />
-        </label>
-        <label className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            checked={marketingOptIn}
-            onChange={(e) => setMarketingOptIn(e.target.checked)}
-            className="mt-1"
-          />
-          <span className="font-body text-sm leading-relaxed text-silver">
-            Yes, send me marketing emails with wellness tips, product updates, and offers. You
-            can unsubscribe at any time.
-          </span>
-        </label>
-        <label className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            checked={notificationsOptIn}
-            onChange={(e) => setNotificationsOptIn(e.target.checked)}
-            className="mt-1"
-          />
-          <span className="font-body text-sm leading-relaxed text-silver">
-            Yes, send me notifications through the app (e.g. fasting reminders, trial updates).
-            You can turn these off anytime in Settings.
-          </span>
         </label>
         {error && <InlineError>{error}</InlineError>}
         <PrimaryButton type="submit" disabled={status === "submitting"}>

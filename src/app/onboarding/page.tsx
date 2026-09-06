@@ -11,11 +11,7 @@ export default async function OnboardingPage() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">
-      <OnboardingWizard
-        userId={user.id}
-        marketingOptIn={user.user_metadata?.marketing_opt_in === true}
-        notificationsOptIn={user.user_metadata?.notifications_opt_in === true}
-      />
+      <OnboardingWizard userId={user.id} />
     </main>
   );
 }
