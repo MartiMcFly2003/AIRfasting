@@ -1,12 +1,34 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { PrimaryButton, SecondaryButton } from "@/components/calendar/DialogPrimitives";
 import { getConsent, setConsent } from "@/lib/analytics/posthog-consent";
 import { useHydrated } from "@/lib/use-hydrated";
 import { OPEN_COOKIE_PREFERENCES_EVENT } from "./cookie-consent-events";
 
 type Status = "hidden" | "banner" | "preferences";
+
+// DialogPrimitives' buttons are w-full, which put these on a row each and made the banner
+// three times taller than its content needs. These size to their label instead, so the whole
+// set fits on one line.
+const BANNER_BUTTON = "rounded-full px-4 py-1.5 font-accent text-xs transition-colors";
+
+function BannerPrimary(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...props}
+      className={`${BANNER_BUTTON} bg-coral font-medium text-obsidian hover:opacity-90`}
+    />
+  );
+}
+
+function BannerSecondary(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...props}
+      className={`${BANNER_BUTTON} border border-ivory/20 text-ivory hover:bg-ivory/10`}
+    />
+  );
+}
 
 export function CookieConsentBanner() {
   const hydrated = useHydrated();
@@ -70,62 +92,62 @@ export function CookieConsentBanner() {
   if (status === "hidden") return null;
 
   return (
-    <div ref={bannerRef} className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-ivory/10 bg-obsidian p-5 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+    <div ref={bannerRef} className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-3">
+      <div className="w-full max-w-2xl rounded-2xl border border-ivory/10 bg-obsidian p-4 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
         {status === "banner" && (
           <>
-            <p className="font-body text-sm leading-relaxed text-silver">
+            <p className="font-body text-xs leading-relaxed text-silver">
               We use cookies to run AIRfasting (strictly necessary), remember your preferences
               (functional), and understand how AIRfasting is used so we can improve it
               (analytics). You can accept all, reject non-essential cookies, or manage your
               preferences below.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <PrimaryButton onClick={acceptAll}>Accept All</PrimaryButton>
-              <SecondaryButton onClick={rejectNonEssential}>Reject Non-Essential</SecondaryButton>
-              <SecondaryButton onClick={openPreferences}>Manage Preferences</SecondaryButton>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <BannerPrimary onClick={acceptAll}>Accept All</BannerPrimary>
+              <BannerSecondary onClick={rejectNonEssential}>Reject Non-Essential</BannerSecondary>
+              <BannerSecondary onClick={openPreferences}>Manage Preferences</BannerSecondary>
             </div>
           </>
         )}
 
         {status === "preferences" && (
           <>
-            <p className="font-heading text-lg tracking-wide text-ivory">Cookie Preferences</p>
-            <div className="mt-3 flex flex-col gap-3">
-              <label className="flex items-start gap-3">
-                <input type="checkbox" checked disabled className="mt-1" />
-                <span className="font-body text-sm leading-relaxed text-silver">
+            <p className="font-heading text-base tracking-wide text-ivory">Cookie Preferences</p>
+            <div className="mt-2 flex flex-col gap-2">
+              <label className="flex items-start gap-2.5">
+                <input type="checkbox" checked disabled className="mt-0.5" />
+                <span className="font-body text-xs leading-relaxed text-silver">
                   <span className="text-ivory">Strictly Necessary</span> — required for
                   AIRfasting to function, including login and security.
                 </span>
               </label>
-              <label className="flex items-start gap-3">
+              <label className="flex items-start gap-2.5">
                 <input
                   type="checkbox"
                   checked={functional}
                   onChange={(e) => setFunctional(e.target.checked)}
-                  className="mt-1"
+                  className="mt-0.5"
                 />
-                <span className="font-body text-sm leading-relaxed text-silver">
+                <span className="font-body text-xs leading-relaxed text-silver">
                   <span className="text-ivory">Functional</span> — remembers your preferences,
                   like language and planning mode.
                 </span>
               </label>
-              <label className="flex items-start gap-3">
+              <label className="flex items-start gap-2.5">
                 <input
                   type="checkbox"
                   checked={analytics}
                   onChange={(e) => setAnalytics(e.target.checked)}
-                  className="mt-1"
+                  className="mt-0.5"
                 />
-                <span className="font-body text-sm leading-relaxed text-silver">
+                <span className="font-body text-xs leading-relaxed text-silver">
                   <span className="text-ivory">Analytics</span> — helps us understand how
                   AIRfasting is used, via PostHog, so we can improve the product.
                 </span>
               </label>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <PrimaryButton onClick={savePreferences}>Save Preferences</PrimaryButton>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <BannerPrimary onClick={savePreferences}>Save Preferences</BannerPrimary>
             </div>
           </>
         )}
