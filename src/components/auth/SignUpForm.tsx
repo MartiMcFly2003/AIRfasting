@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { PrimaryButton } from "@/components/calendar/DialogPrimitives";
 import { createClient } from "@/lib/supabase/client";
 import { signUpWithPassword } from "@/lib/supabase/auth";
-import { saveSignupOptIns } from "@/lib/onboarding/signup-optins";
 import { AuthShell, FIELD_LABEL, InlineError, TEXT_INPUT } from "./AuthPrimitives";
 
 export function SignUpForm() {
@@ -22,14 +21,15 @@ export function SignUpForm() {
     setError(null);
     setStatus("submitting");
 
-    const { data, error: signUpError } = await signUpWithPassword(email, password);
+    const { data, error: signUpError } = await signUpWithPassword(email, password, {
+      marketingOptIn,
+      notificationsOptIn,
+    });
     if (signUpError) {
       setError(signUpError.message);
       setStatus("idle");
       return;
     }
-
-    saveSignupOptIns({ marketingOptIn, notificationsOptIn });
 
     if (!data.session || !data.user) {
       // Email confirmation is required on this project — no session yet, nothing to

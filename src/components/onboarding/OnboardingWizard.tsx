@@ -5,7 +5,6 @@ import { useState } from "react";
 import { CancelLink, PrimaryButton, SecondaryButton } from "@/components/calendar/DialogPrimitives";
 import { computeProfessionalGuidedGate } from "@/lib/calendar/track";
 import { saveOnboardingProfile } from "@/lib/onboarding/save-profile";
-import { consumeSignupOptIns } from "@/lib/onboarding/signup-optins";
 import type { OnboardingAnswers } from "@/lib/onboarding/types";
 import { InlineError, OnboardingShell, ProgressDots } from "./OnboardingPrimitives";
 import {
@@ -76,17 +75,20 @@ function canProceed(screen: ScreenId, a: OnboardingAnswers): boolean {
 
 export interface OnboardingWizardProps {
   userId: string;
+  marketingOptIn: boolean;
+  notificationsOptIn: boolean;
 }
 
-function getInitialAnswers(): OnboardingAnswers {
-  if (typeof window === "undefined") return {};
-  const { marketingOptIn, notificationsOptIn } = consumeSignupOptIns();
-  return { marketingOptIn, notificationsOptIn };
-}
-
-export function OnboardingWizard({ userId }: OnboardingWizardProps) {
+export function OnboardingWizard({
+  userId,
+  marketingOptIn,
+  notificationsOptIn,
+}: OnboardingWizardProps) {
   const router = useRouter();
-  const [answers, setAnswers] = useState<OnboardingAnswers>(getInitialAnswers);
+  const [answers, setAnswers] = useState<OnboardingAnswers>({
+    marketingOptIn,
+    notificationsOptIn,
+  });
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
