@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
 import { NotificationPreferencesSection } from "@/components/settings/NotificationPreferencesSection";
+import { TimeZoneSection } from "@/components/settings/TimeZoneSection";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function SettingsPage() {
@@ -14,7 +15,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("subscription_status, notifications_opt_in, marketing_opt_in")
+    .select("subscription_status, notifications_opt_in, marketing_opt_in, timezone")
     .eq("user_id", user.id)
     .single();
 
@@ -29,6 +30,11 @@ export default async function SettingsPage() {
               initialNotificationsOptIn={profile.notifications_opt_in ?? false}
               initialMarketingOptIn={profile.marketing_opt_in ?? false}
             />
+          </div>
+        )}
+        {profile && (
+          <div className="mt-6 border-t border-ivory/10 pt-6">
+            <TimeZoneSection userId={user.id} initialTimeZone={profile.timezone ?? null} />
           </div>
         )}
         <div className="mt-6 border-t border-ivory/10 pt-6">

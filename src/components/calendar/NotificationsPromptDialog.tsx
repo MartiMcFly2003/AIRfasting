@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useHydrated } from "@/lib/use-hydrated";
+import { detectTimeZone } from "@/lib/user-timezone";
 import {
   DialogBody,
   DialogShell,
@@ -30,6 +32,9 @@ export interface NotificationsPromptDialogProps {
  */
 export function NotificationsPromptDialog({ userId }: NotificationsPromptDialogProps) {
   const router = useRouter();
+  // Browser-only, so it stays null through the first render — see useHydrated.
+  const hydrated = useHydrated();
+  const timeZone = hydrated ? detectTimeZone() : null;
   const [answered, setAnswered] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +49,9 @@ export function NotificationsPromptDialog({ userId }: NotificationsPromptDialogP
       .update({
         notifications_opt_in: optIn,
         notifications_prompt_answered_at: new Date().toISOString(),
+        // Only when we actually have one — writing null over a zone they already set in
+        // Settings would be worse than leaving it alone.
+        ...(timeZone ? { timezone: timeZone } : {}),
       })
       .eq("user_id", userId);
 
@@ -69,6 +77,11 @@ export function NotificationsPromptDialog({ userId }: NotificationsPromptDialogP
         begins, so a planned fast doesn&apos;t quietly slip by. Would you like these once
         they&apos;re ready? You can change your mind any time in Settings.
       </DialogBody>
+      {timeZone && (
+        <p className="mt-2 font-accent text-xs text-silver">
+          We&apos;ll time them to {timeZone}. You can change that in Settings.
+        </p>
+      )}
       {error && <InlineError>{error}</InlineError>}
       <div className="mt-5 flex flex-col gap-2">
         <PrimaryButton onClick={() => answer(true)} disabled={saving}>

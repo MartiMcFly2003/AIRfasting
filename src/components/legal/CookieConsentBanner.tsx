@@ -1,20 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/calendar/DialogPrimitives";
 import { getConsent, setConsent } from "@/lib/analytics/posthog-consent";
+import { useHydrated } from "@/lib/use-hydrated";
 import { OPEN_COOKIE_PREFERENCES_EVENT } from "./cookie-consent-events";
 
 type Status = "hidden" | "banner" | "preferences";
-
-const neverResubscribe = () => () => {};
-
-/** False during SSR and on the client's first render, true from then on. Consent lives in a
- *  cookie the server can't read, so gating on this keeps the two passes agreeing during
- *  hydration instead of the server rendering nothing while the client renders the banner. */
-function useHydrated(): boolean {
-  return useSyncExternalStore(neverResubscribe, () => true, () => false);
-}
 
 export function CookieConsentBanner() {
   const hydrated = useHydrated();

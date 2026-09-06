@@ -1,5 +1,6 @@
 import { deriveTrack } from "@/lib/calendar/track";
 import { createClient } from "@/lib/supabase/client";
+import { detectTimeZone } from "@/lib/user-timezone";
 import { toOnboardingProfile } from "./build-profile";
 import type { OnboardingAnswers, YesNo, YesNoNotSure } from "./types";
 
@@ -30,6 +31,7 @@ export async function saveOnboardingProfile(userId: string, answers: OnboardingA
   if (userError) throw userError;
 
   const now = new Date().toISOString();
+  const timezone = detectTimeZone();
   const { error } = await supabase.from("user_profiles").upsert({
     user_id: userId,
     gender: answers.gender ?? null,
@@ -49,6 +51,9 @@ export async function saveOnboardingProfile(userId: string, answers: OnboardingA
     // Answered deliberately on the consent screen, so the catch-up prompt on the calendar has
     // nothing to ask these accounts.
     notifications_prompt_answered_at: now,
+    // Spread rather than a plain null so a re-run can't wipe a zone the person has since
+    // chosen in Settings.
+    ...(timezone ? { timezone } : {}),
   });
 
   if (error) throw error;
