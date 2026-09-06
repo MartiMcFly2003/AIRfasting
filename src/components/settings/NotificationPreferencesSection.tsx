@@ -71,8 +71,8 @@ export function NotificationPreferencesSection({
             className="mt-1"
           />
           <span className="font-body text-sm leading-relaxed text-silver">
-            <span className="text-ivory">In-app notifications</span> — fasting reminders and
-            trial updates.
+            <span className="text-ivory">In-app notifications</span> — fasting reminders for
+            your scheduled fasts, plus trial updates.
           </span>
         </label>
         <label className="flex items-start gap-3">

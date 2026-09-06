@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DialogBody,
   DialogShell,
@@ -25,34 +25,70 @@ const FIELD_LABEL = "font-accent text-xs uppercase tracking-wider text-silver";
 const TEXT_INPUT =
   "mt-1 w-full rounded-lg border border-ivory/20 bg-transparent px-3 py-2 font-body text-sm text-ivory focus:outline-none [color-scheme:dark]";
 
-export function ConsentScreen({ answers, onChange }: ScreenProps) {
+export interface ConsentScreenProps extends ScreenProps {
+  /** Bumped every time Next is pressed with something still unanswered. A counter rather than
+   *  a flag so a second press re-points at the gap instead of doing nothing. */
+  gapNudge?: number;
+}
+
+/** Transparent border when there's nothing to flag, so highlighting a gap doesn't shift the
+ *  layout underneath the reader. */
+function gapBox(missing: boolean): string {
+  return `rounded-xl border p-3 transition-colors ${missing ? "border-coral" : "border-transparent"}`;
+}
+
+export function ConsentScreen({ answers, onChange, gapNudge = 0 }: ConsentScreenProps) {
+  const showGaps = gapNudge > 0;
+  const termsMissing = showGaps && answers.termsAccepted !== true;
+  const healthMissing = showGaps && answers.healthDataConsent !== true;
+  const marketingMissing = showGaps && answers.marketingOptIn == null;
+  const firstGap = termsMissing
+    ? "terms"
+    : healthMissing
+      ? "health"
+      : marketingMissing
+        ? "marketing"
+        : null;
+
+  // This screen is taller than most viewports and Next sits at the bottom of it, so whatever
+  // is unanswered may well be off-screen at the moment they press it.
+  const firstGapRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (gapNudge > 0) firstGapRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [gapNudge]);
+
   return (
     <>
       <DialogTitle>Before we start</DialogTitle>
       <DialogBody>
         Two things we need your explicit agreement on, and two choices about what we send you.
       </DialogBody>
-      <div className="mt-4 flex flex-col gap-4">
-        <label className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            checked={answers.termsAccepted ?? false}
-            onChange={(e) => onChange({ termsAccepted: e.target.checked })}
-            className="mt-1"
-          />
-          <span className="font-body text-sm leading-relaxed text-silver">
-            I have read and agree to AIRfasting&apos;s{" "}
-            <Link href="/terms" target="_blank" className="text-ivory underline">
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link href="/privacy" target="_blank" className="text-ivory underline">
-              Privacy Policy
-            </Link>
-            .
-          </span>
-        </label>
-        <div>
+      <div className="mt-4 flex flex-col gap-3">
+        <div ref={firstGap === "terms" ? firstGapRef : undefined} className={gapBox(termsMissing)}>
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={answers.termsAccepted ?? false}
+              onChange={(e) => onChange({ termsAccepted: e.target.checked })}
+              className="mt-1"
+            />
+            <span className="font-body text-sm leading-relaxed text-silver">
+              I have read and agree to AIRfasting&apos;s{" "}
+              <Link href="/terms" target="_blank" className="text-ivory underline">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" target="_blank" className="text-ivory underline">
+                Privacy Policy
+              </Link>
+              .
+            </span>
+          </label>
+          {termsMissing && (
+            <InlineError>Please accept the Terms and Privacy Policy to continue.</InlineError>
+          )}
+        </div>
+        <div ref={firstGap === "health" ? firstGapRef : undefined} className={gapBox(healthMissing)}>
           <p className="font-body text-sm leading-relaxed text-silver">
             AIRfasting helps you plan fasting around your body&apos;s natural rhythms. To do
             this, we need your explicit consent to process health-related information,
@@ -77,15 +113,22 @@ export function ConsentScreen({ answers, onChange }: ScreenProps) {
               .
             </span>
           </label>
+          {healthMissing && (
+            <InlineError>
+              We need this consent to build your plan &mdash; it works from health data.
+            </InlineError>
+          )}
         </div>
 
         {/* Yes/No rather than a tickbox: an untouched checkbox can't be told apart from a
-            considered "no", and these two used to sit unnoticed on the sign-up form. The
-            wizard won't advance until both are answered. */}
-        <div>
+            considered "no", and these two used to sit unnoticed on the sign-up form.
+            Reminders start on "yes" because they're part of the service being signed up for;
+            marketing deliberately starts empty, since a pre-selected answer isn't consent. */}
+        <div className={gapBox(false)}>
           <p className={FIELD_LABEL}>Notifications in the app</p>
           <p className="mt-1 font-body text-sm leading-relaxed text-silver">
-            Fasting reminders and trial updates. You can change this any time in Settings.
+            Fasting reminders for your scheduled fasts, plus trial updates. You can change
+            this any time in Settings.
           </p>
           <div className="mt-2 flex flex-col gap-2">
             {OPT_IN_OPTIONS.map((opt) => (
@@ -99,7 +142,10 @@ export function ConsentScreen({ answers, onChange }: ScreenProps) {
           </div>
         </div>
 
-        <div>
+        <div
+          ref={firstGap === "marketing" ? firstGapRef : undefined}
+          className={gapBox(marketingMissing)}
+        >
           <p className={FIELD_LABEL}>Marketing emails</p>
           <p className="mt-1 font-body text-sm leading-relaxed text-silver">
             Wellness tips, product updates, and offers. You can unsubscribe at any time.
@@ -114,6 +160,11 @@ export function ConsentScreen({ answers, onChange }: ScreenProps) {
               />
             ))}
           </div>
+          {marketingMissing && (
+            <InlineError>
+              Please choose yes or no &mdash; we won&apos;t send anything without an answer.
+            </InlineError>
+          )}
         </div>
       </div>
     </>

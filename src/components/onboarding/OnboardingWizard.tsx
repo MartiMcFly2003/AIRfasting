@@ -84,11 +84,15 @@ export interface OnboardingWizardProps {
 
 export function OnboardingWizard({ userId }: OnboardingWizardProps) {
   const router = useRouter();
-  const [answers, setAnswers] = useState<OnboardingAnswers>({});
+  // Reminders for fasts the user schedules themselves are part of the service being signed
+  // up for, so they start on. Marketing starts empty on purpose — a pre-selected answer isn't
+  // a valid opt-in, so it has to be actively chosen.
+  const [answers, setAnswers] = useState<OnboardingAnswers>({ notificationsOptIn: true });
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [gateReason, setGateReason] = useState<GateReason | null>(null);
+  const [consentGapNudge, setConsentGapNudge] = useState(0);
 
   const screens = visibleScreens(answers);
   const currentScreen = screens[stepIndex];
@@ -98,7 +102,12 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
   }
 
   async function handleNext() {
-    if (!canProceed(currentScreen, answers)) return;
+    if (!canProceed(currentScreen, answers)) {
+      // The consent screen points at what's still unanswered rather than leaving a dead button
+      // with no explanation of why it won't move.
+      if (currentScreen === "consent") setConsentGapNudge((n) => n + 1);
+      return;
+    }
 
     if (currentScreen === "safety") {
       const gated = computeProfessionalGuidedGate({
@@ -166,7 +175,9 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
         />
       ) : (
         <>
-          {currentScreen === "consent" && <ConsentScreen answers={answers} onChange={patch} />}
+          {currentScreen === "consent" && (
+            <ConsentScreen answers={answers} onChange={patch} gapNudge={consentGapNudge} />
+          )}
           {currentScreen === "identity" && <IdentityScreen answers={answers} onChange={patch} />}
           {currentScreen === "cycle" && <CycleStatusScreen answers={answers} onChange={patch} />}
           {currentScreen === "fasting" && <FastingExperienceScreen answers={answers} onChange={patch} />}
@@ -176,7 +187,10 @@ export function OnboardingWizard({ userId }: OnboardingWizardProps) {
           {saveError && <InlineError>{saveError}</InlineError>}
 
           <div className="mt-5 flex flex-col gap-2">
-            <PrimaryButton onClick={handleNext} disabled={!canProceed(currentScreen, answers) || saving}>
+            <PrimaryButton
+              onClick={handleNext}
+              disabled={saving || (currentScreen !== "consent" && !canProceed(currentScreen, answers))}
+            >
               {saving ? "Saving…" : currentScreen === "goals" ? "See my calendar" : "Next"}
             </PrimaryButton>
             {stepIndex > 0 ? (
