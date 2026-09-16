@@ -5,8 +5,8 @@
 -- Two columns rather than a reminders table: there are exactly two per plan, they're written
 -- once, and they're never queried independently of the plan itself.
 
-alter table public.fast_plans add column reminder_24h_sent_at timestamptz;
-alter table public.fast_plans add column reminder_1h_sent_at timestamptz;
+alter table public.fast_plans add column if not exists reminder_24h_sent_at timestamptz;
+alter table public.fast_plans add column if not exists reminder_1h_sent_at timestamptz;
 
 -- The cron scans a few days either side of today across every user, which is the only query in
 -- the app that reads fast_plans without a user_id filter.
