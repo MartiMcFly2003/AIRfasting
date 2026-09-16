@@ -5,7 +5,7 @@ import { PrimaryButton, SecondaryButton } from "@/components/calendar/DialogPrim
 import { createClient } from "@/lib/supabase/client";
 import { effectiveTimeZone, isTravelling } from "@/lib/timezone-preference";
 import { useHydrated } from "@/lib/use-hydrated";
-import { detectTimeZone, supportedTimeZones } from "@/lib/user-timezone";
+import { detectTimeZone, supportedTimeZoneOptions } from "@/lib/user-timezone";
 
 /** Matches AuthPrimitives.tsx / OnboardingPrimitives.tsx's InlineError — small intentional
  *  duplication rather than a cross-domain import, same rationale as those two. */
@@ -14,7 +14,7 @@ function InlineError({ children }: { children: React.ReactNode }) {
 }
 
 const SELECT =
-  "mt-2 w-full rounded-lg border border-ivory/20 bg-transparent px-3 py-2 font-body text-sm text-ivory focus:outline-none [color-scheme:dark]";
+  "mt-2 w-full rounded-lg border border-ivory/20 bg-obsidian px-3 py-2 font-body text-sm text-ivory focus:outline-none [color-scheme:dark]";
 
 export interface TimeZoneSectionProps {
   userId: string;
@@ -45,7 +45,7 @@ export function TimeZoneSection({
   // the browser another.
   const hydrated = useHydrated();
   const detected = hydrated ? detectTimeZone() : null;
-  const zones = hydrated ? supportedTimeZones() : [];
+  const zones = hydrated ? supportedTimeZoneOptions() : [];
 
   const [timezone, setTimezone] = useState(initialTimeZone);
   const [homeTimezone, setHomeTimezone] = useState(initialHomeTimeZone);
@@ -65,7 +65,10 @@ export function TimeZoneSection({
   const dirty = choice !== (current ?? "");
   // A zone we hold but the browser doesn't list (or the list being unavailable) still has to
   // appear, or saving would silently drop it.
-  const options = choice && !zones.includes(choice) ? [choice, ...zones] : zones;
+  const options =
+    choice && !zones.some((zone) => zone.value === choice)
+      ? [{ value: choice, label: choice }, ...zones]
+      : zones;
 
   async function persist(patch: {
     timezone: string | null;
@@ -140,10 +143,10 @@ export function TimeZoneSection({
         className={SELECT}
         aria-label="Time zone"
       >
-        <option value="">Not set</option>
+        <option value="" className="bg-obsidian text-ivory">Not set</option>
         {options.map((zone) => (
-          <option key={zone} value={zone}>
-            {zone}
+          <option key={zone.value} value={zone.value} className="bg-obsidian text-ivory">
+            {zone.label}
           </option>
         ))}
       </select>

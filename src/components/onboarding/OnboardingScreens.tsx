@@ -11,7 +11,7 @@ import {
 } from "@/components/calendar/DialogPrimitives";
 import type { Goal, HealthCondition, OnboardingAnswers } from "@/lib/onboarding/types";
 import { useHydrated } from "@/lib/use-hydrated";
-import { detectTimeZone, supportedTimeZones } from "@/lib/user-timezone";
+import { detectTimeZone, supportedTimeZoneOptions } from "@/lib/user-timezone";
 import { ChoiceButton, InlineError } from "./OnboardingPrimitives";
 
 export interface ScreenProps {
@@ -27,7 +27,7 @@ const FIELD_LABEL = "font-accent text-xs uppercase tracking-wider text-silver";
 const TEXT_INPUT =
   "mt-1 w-full rounded-lg border border-ivory/20 bg-transparent px-3 py-2 font-body text-sm text-ivory focus:outline-none [color-scheme:dark]";
 const SELECT_INPUT =
-  "mt-2 w-full rounded-lg border border-ivory/20 bg-transparent px-3 py-2 font-body text-sm text-ivory focus:outline-none [color-scheme:dark]";
+  "mt-2 w-full rounded-lg border border-ivory/20 bg-obsidian px-3 py-2 font-body text-sm text-ivory focus:outline-none [color-scheme:dark]";
 
 export interface ConsentScreenProps extends ScreenProps {
   /** Bumped every time Next is pressed with something still unanswered. A counter rather than
@@ -50,8 +50,11 @@ export function ConsentScreen({ answers, onChange, gapNudge = 0 }: ConsentScreen
   const hydrated = useHydrated();
   const detectedZone = hydrated ? detectTimeZone() : null;
   const zoneChoice = answers.timezone ?? detectedZone ?? "";
-  const zones = hydrated ? supportedTimeZones() : [];
-  const zoneOptions = zoneChoice && !zones.includes(zoneChoice) ? [zoneChoice, ...zones] : zones;
+  const zones = hydrated ? supportedTimeZoneOptions() : [];
+  const zoneOptions =
+    zoneChoice && !zones.some((zone) => zone.value === zoneChoice)
+      ? [{ value: zoneChoice, label: zoneChoice }, ...zones]
+      : zones;
   const termsMissing = showGaps && answers.termsAccepted !== true;
   const healthMissing = showGaps && answers.healthDataConsent !== true;
   const marketingMissing = showGaps && answers.marketingOptIn == null;
@@ -170,10 +173,14 @@ export function ConsentScreen({ answers, onChange, gapNudge = 0 }: ConsentScreen
             className={SELECT_INPUT}
             aria-label="Your time zone"
           >
-            {!zoneChoice && <option value="">Select your time zone</option>}
+            {!zoneChoice && (
+              <option value="" className="bg-obsidian text-ivory">
+                Select your time zone
+              </option>
+            )}
             {zoneOptions.map((zone) => (
-              <option key={zone} value={zone}>
-                {zone}
+              <option key={zone.value} value={zone.value} className="bg-obsidian text-ivory">
+                {zone.label}
               </option>
             ))}
           </select>
@@ -320,11 +327,11 @@ export function CycleStatusScreen({ answers, onChange }: ScreenProps) {
             }
             className={TEXT_INPUT}
           >
-            <option value="" disabled>
+            <option value="" disabled className="bg-obsidian text-ivory">
               Choose one
             </option>
             {MONTHS_SINCE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <option key={opt.value} value={opt.value} className="bg-obsidian text-ivory">
                 {opt.label}
               </option>
             ))}

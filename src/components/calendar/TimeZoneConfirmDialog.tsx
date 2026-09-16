@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useHydrated } from "@/lib/use-hydrated";
-import { detectTimeZone, supportedTimeZones } from "@/lib/user-timezone";
+import { detectTimeZone, supportedTimeZoneOptions } from "@/lib/user-timezone";
 import {
   DialogBody,
   DialogShell,
@@ -20,7 +20,7 @@ function InlineError({ children }: { children: React.ReactNode }) {
 }
 
 const SELECT =
-  "mt-2 w-full rounded-lg border border-ivory/20 bg-transparent px-3 py-2 font-body text-sm text-ivory focus:outline-none [color-scheme:dark]";
+  "mt-2 w-full rounded-lg border border-ivory/20 bg-obsidian px-3 py-2 font-body text-sm text-ivory focus:outline-none [color-scheme:dark]";
 
 export interface TimeZoneConfirmDialogProps {
   userId: string;
@@ -57,7 +57,7 @@ export function TimeZoneConfirmDialog({
   // Browser-only, so it stays null through the first render — see useHydrated.
   const hydrated = useHydrated();
   const detected = hydrated ? detectTimeZone() : null;
-  const zones = hydrated ? supportedTimeZones() : [];
+  const zones = hydrated ? supportedTimeZoneOptions() : [];
 
   const [choice, setChoice] = useState<string | null>(null);
   const [answered, setAnswered] = useState(false);
@@ -67,7 +67,8 @@ export function TimeZoneConfirmDialog({
   // Null choice means "whatever we'd propose" — resolved at render so the value can appear once
   // hydration supplies a detected zone, without an effect writing it into state first.
   const zone = choice ?? detected ?? savedTimeZone ?? "";
-  const options = zone && !zones.includes(zone) ? [zone, ...zones] : zones;
+  const options =
+    zone && !zones.some((tz) => tz.value === zone) ? [{ value: zone, label: zone }, ...zones] : zones;
 
   async function save(optIn: boolean | null) {
     setError(null);
@@ -119,10 +120,14 @@ export function TimeZoneConfirmDialog({
         className={SELECT}
         aria-label="Your time zone"
       >
-        {!zone && <option value="">Select your time zone</option>}
+        {!zone && (
+          <option value="" className="bg-obsidian text-ivory">
+            Select your time zone
+          </option>
+        )}
         {options.map((tz) => (
-          <option key={tz} value={tz}>
-            {tz}
+          <option key={tz.value} value={tz.value} className="bg-obsidian text-ivory">
+            {tz.label}
           </option>
         ))}
       </select>
