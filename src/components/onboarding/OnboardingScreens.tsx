@@ -164,8 +164,8 @@ export function ConsentScreen({ answers, onChange, gapNudge = 0 }: ConsentScreen
         <div className={gapBox(false)}>
           <p className={FIELD_LABEL}>Your time zone</p>
           <p className="mt-1 font-body text-sm leading-relaxed text-silver">
-            We use this for your fasting timer and to send reminders at the right local hour.
-            You can change it any time in Settings.
+            We use this for your fasting timer, to work out your lunar cycle dates, and to
+            send reminders at the right local hour. You can change it any time in Settings.
           </p>
           <select
             value={zoneChoice}

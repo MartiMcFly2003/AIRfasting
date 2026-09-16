@@ -11,12 +11,15 @@ import { TRACK_PROTOCOL, toISODate, type ISODate, type Track, type YearMonth } f
 import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
 import { getMoonHighlightsForMonth } from "@/lib/calendar/moon-highlights";
 import { createClient } from "@/lib/supabase/server";
+import { locationForTimeZone } from "@/lib/calendar/zone-location";
 import { effectiveTimeZone } from "@/lib/timezone-preference";
 
-// Mock location until onboarding captures the user's real one — Berlin, as a placeholder.
-// New Moon/Full Moon barely depend on location (just which local date the UTC moment falls
-// on), but Ekadashi's sunrise-anchored calculation genuinely needs real coordinates.
-const MOCK_LOCATION = { lat: 52.52, lon: 13.405 };
+// Used only for accounts that have not told us a time zone yet, which is the one case where
+// there is nothing to derive a location from. Named for what it is: New Moon and Full Moon
+// barely move with location, but Ekadashi is resolved against sunrise, so this is a real guess
+// with real consequences — a reader in Kuala Lumpur given these coordinates gets roughly a
+// quarter of their observances on the wrong day. Everyone with a confirmed zone gets their own.
+const FALLBACK_LOCATION = { lat: 52.52, lon: 13.405 };
 
 const VALID_TRACKS = Object.keys(TRACK_PROTOCOL) as Track[];
 
@@ -128,9 +131,6 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     { month: "long", year: "numeric", timeZone: "UTC" },
   );
 
-  const moonHighlights = await getMoonHighlightsForMonth(viewedMonth, MOCK_LOCATION.lat, MOCK_LOCATION.lon);
-  const todayISO = isCurrentMonth ? toISODate(viewedMonth, now.getUTCDate()) : undefined;
-
   // Two time-zone questions, and at most one of them is worth asking at a time.
   //
   // Confirmation comes first and outranks travel: an account that has never confirmed a zone
@@ -146,6 +146,12 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     },
     now,
   );
+
+  // Derived from the zone they confirmed, so the sunrise these observances hang on is their
+  // sunrise. Falls back only when we have no zone at all.
+  const location = locationForTimeZone(currentZone) ?? FALLBACK_LOCATION;
+  const moonHighlights = await getMoonHighlightsForMonth(viewedMonth, location.lat, location.lon);
+  const todayISO = isCurrentMonth ? toISODate(viewedMonth, now.getUTCDate()) : undefined;
 
   return (
     <main className="flex flex-1 flex-col items-center gap-10 px-6 py-16">

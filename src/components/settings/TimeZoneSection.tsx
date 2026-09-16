@@ -124,8 +124,8 @@ export function TimeZoneSection({
     <div>
       <h2 className="font-heading text-lg tracking-wide text-ivory">Time zone</h2>
       <p className="mt-2 font-body text-sm leading-relaxed text-silver">
-        Used for your fasting timer and to send reminders about your scheduled fasts at the
-        right local hour.
+        Used for your fasting timer, to work out your lunar cycle dates, and to send reminders
+        about your scheduled fasts at the right local hour.
       </p>
 
       <p className="mt-3 font-body text-sm text-ivory">

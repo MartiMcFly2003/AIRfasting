@@ -132,7 +132,8 @@ export function TimeZoneConfirmDialog({
         ))}
       </select>
       <p className="mt-2 font-accent text-xs text-silver">
-        Used for your fasting timer and reminders. You can change it any time in Settings.
+        Used for your fasting timer, your lunar cycle dates, and reminders. You can change it
+        any time in Settings.
       </p>
 
       {error && <InlineError>{error}</InlineError>}
