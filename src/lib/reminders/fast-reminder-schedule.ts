@@ -33,10 +33,14 @@ const EVENING_NUDGE_LOCAL = "18:00";
  * still useful hours later, and tight for the hour-before, which stops being a warning the
  * moment the fast has started. Past this a reminder is dropped rather than sent wrong — the row
  * is left unstamped and simply falls out of the query window.
+ *
+ * The hour-before grace is capped at exactly the hour it sits ahead of the start: any longer and
+ * a missed run could deliver "your fast starts in an hour" to somebody already fasting, which is
+ * worse than staying quiet.
  */
 const GRACE_MS: Record<ReminderKind, number> = {
   "24h": 3 * HOUR_MS,
-  "1h": 90 * 60 * 1000,
+  "1h": HOUR_MS,
 };
 
 /**

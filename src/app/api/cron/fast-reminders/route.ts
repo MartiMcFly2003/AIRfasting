@@ -13,10 +13,11 @@ import { shiftIsoDate } from "@/lib/zoned-time";
 /**
  * Sends the 24-hour and 1-hour reminders for planned fasts.
  *
- * Meant to run hourly: a reminder is due at a local wall-clock moment, and every hour of the
- * day is somebody's evening. Running less often doesn't break anything — the grace windows in
- * fast-reminder-schedule absorb a missed run, and anything later is dropped rather than sent at
- * the wrong time — it just means some people get nothing.
+ * Meant to run every 15 minutes: a reminder is due at a local wall-clock moment, and a fast can
+ * start at any minute of any hour. Running less often doesn't break anything — the grace windows
+ * in fast-reminder-schedule absorb a missed run, and anything later is dropped rather than sent
+ * at the wrong time — it just means reminders drift later than they claim, and at hourly spacing
+ * an "in one hour" nudge can land only minutes before the start.
  *
  * Safe to call repeatedly: each send is stamped on the plan before the next is considered, and
  * already-stamped reminders are filtered out.
