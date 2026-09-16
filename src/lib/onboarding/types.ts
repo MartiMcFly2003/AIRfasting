@@ -52,4 +52,7 @@ export interface OnboardingAnswers {
   healthDataConsent?: boolean;
   marketingOptIn?: boolean;
   notificationsOptIn?: boolean;
+  /** IANA zone chosen on the consent screen, defaulted to whatever the browser reports. Kept
+   *  here rather than re-detected at save time so a correction made on that screen survives. */
+  timezone?: string | null;
 }

@@ -10,6 +10,8 @@ import {
   SecondaryButton,
 } from "@/components/calendar/DialogPrimitives";
 import type { Goal, HealthCondition, OnboardingAnswers } from "@/lib/onboarding/types";
+import { useHydrated } from "@/lib/use-hydrated";
+import { detectTimeZone, supportedTimeZones } from "@/lib/user-timezone";
 import { ChoiceButton, InlineError } from "./OnboardingPrimitives";
 
 export interface ScreenProps {
@@ -24,6 +26,8 @@ function todayAsISODate(): string {
 const FIELD_LABEL = "font-accent text-xs uppercase tracking-wider text-silver";
 const TEXT_INPUT =
   "mt-1 w-full rounded-lg border border-ivory/20 bg-transparent px-3 py-2 font-body text-sm text-ivory focus:outline-none [color-scheme:dark]";
+const SELECT_INPUT =
+  "mt-2 w-full rounded-lg border border-ivory/20 bg-transparent px-3 py-2 font-body text-sm text-ivory focus:outline-none [color-scheme:dark]";
 
 export interface ConsentScreenProps extends ScreenProps {
   /** Bumped every time Next is pressed with something still unanswered. A counter rather than
@@ -39,6 +43,15 @@ function gapBox(missing: boolean): string {
 
 export function ConsentScreen({ answers, onChange, gapNudge = 0 }: ConsentScreenProps) {
   const showGaps = gapNudge > 0;
+  // Both the device zone and the IANA list are browser-only — see TimeZoneSection for the same
+  // gate. The detected zone is shown as the answer without being written into state: leaving it
+  // unset means saveOnboardingProfile re-detects at save time, so a wizard left open across a
+  // flight still records where they actually are.
+  const hydrated = useHydrated();
+  const detectedZone = hydrated ? detectTimeZone() : null;
+  const zoneChoice = answers.timezone ?? detectedZone ?? "";
+  const zones = hydrated ? supportedTimeZones() : [];
+  const zoneOptions = zoneChoice && !zones.includes(zoneChoice) ? [zoneChoice, ...zones] : zones;
   const termsMissing = showGaps && answers.termsAccepted !== true;
   const healthMissing = showGaps && answers.healthDataConsent !== true;
   const marketingMissing = showGaps && answers.marketingOptIn == null;
@@ -140,6 +153,37 @@ export function ConsentScreen({ answers, onChange, gapNudge = 0 }: ConsentScreen
               />
             ))}
           </div>
+        </div>
+
+        {/* Sits with the notifications choice because it is the same subject: a reminder is only
+            useful if it knows which clock you keep. Pre-filled from the browser and editable,
+            rather than asked cold — almost nobody wants to hunt for their own IANA name. */}
+        <div className={gapBox(false)}>
+          <p className={FIELD_LABEL}>Your time zone</p>
+          <p className="mt-1 font-body text-sm leading-relaxed text-silver">
+            We use this for your fasting timer and to send reminders at the right local hour.
+            You can change it any time in Settings.
+          </p>
+          <select
+            value={zoneChoice}
+            onChange={(e) => onChange({ timezone: e.target.value || null })}
+            className={SELECT_INPUT}
+            aria-label="Your time zone"
+          >
+            {!zoneChoice && <option value="">Select your time zone</option>}
+            {zoneOptions.map((zone) => (
+              <option key={zone} value={zone}>
+                {zone}
+              </option>
+            ))}
+          </select>
+          {detectedZone && zoneChoice !== detectedZone && (
+            <div className="mt-2">
+              <SecondaryButton onClick={() => onChange({ timezone: detectedZone })}>
+                Use my current time zone ({detectedZone})
+              </SecondaryButton>
+            </div>
+          )}
         </div>
 
         <div

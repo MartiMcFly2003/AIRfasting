@@ -15,7 +15,9 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("subscription_status, notifications_opt_in, marketing_opt_in, timezone")
+    .select(
+      "subscription_status, notifications_opt_in, marketing_opt_in, timezone, home_timezone, timezone_reverts_on",
+    )
     .eq("user_id", user.id)
     .single();
 
@@ -34,7 +36,12 @@ export default async function SettingsPage() {
         )}
         {profile && (
           <div className="mt-6 border-t border-ivory/10 pt-6">
-            <TimeZoneSection userId={user.id} initialTimeZone={profile.timezone ?? null} />
+            <TimeZoneSection
+              userId={user.id}
+              initialTimeZone={profile.timezone ?? null}
+              initialHomeTimeZone={profile.home_timezone ?? null}
+              initialRevertsOn={profile.timezone_reverts_on ?? null}
+            />
           </div>
         )}
         <div className="mt-6 border-t border-ivory/10 pt-6">

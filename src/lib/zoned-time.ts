@@ -92,3 +92,18 @@ export function formatDateInZone(instant: Date, timeZone: string): string | null
     return null;
   }
 }
+
+/** "2026-09-16" — today's date as the given zone sees it, which is not always UTC's answer. */
+export function isoDateInZone(instant: Date, timeZone: string): string | null {
+  try {
+    // en-CA formats as YYYY-MM-DD, which is the shape the rest of the app stores dates in.
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(instant);
+  } catch {
+    return null;
+  }
+}

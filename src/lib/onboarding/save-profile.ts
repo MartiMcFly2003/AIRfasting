@@ -31,7 +31,9 @@ export async function saveOnboardingProfile(userId: string, answers: OnboardingA
   if (userError) throw userError;
 
   const now = new Date().toISOString();
-  const timezone = detectTimeZone();
+  // The consent screen pre-fills this from the browser, so an explicit answer is the normal
+  // case; re-detecting covers a wizard where the list never loaded.
+  const timezone = answers.timezone ?? detectTimeZone();
   const { error } = await supabase.from("user_profiles").upsert({
     user_id: userId,
     gender: answers.gender ?? null,
@@ -53,7 +55,11 @@ export async function saveOnboardingProfile(userId: string, answers: OnboardingA
     notifications_prompt_answered_at: now,
     // Spread rather than a plain null so a re-run can't wipe a zone the person has since
     // chosen in Settings.
-    ...(timezone ? { timezone } : {}),
+    // home_timezone is seeded alongside it: it is where a later trip returns to, and
+    // onboarding is the one moment we can be confident somebody is telling us about home.
+    ...(timezone
+      ? { timezone, home_timezone: timezone, timezone_confirmed_at: now }
+      : {}),
   });
 
   if (error) throw error;

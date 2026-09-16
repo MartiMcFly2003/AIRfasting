@@ -4,12 +4,14 @@ import { LogOutButton } from "@/components/auth/LogOutButton";
 import { ManageSubscriptionLink } from "@/components/billing/ManageSubscriptionLink";
 import { CalendarTrackManager } from "@/components/calendar/CalendarTrackManager";
 import { MonthNav } from "@/components/calendar/MonthNav";
-import { NotificationsPromptDialog } from "@/components/calendar/NotificationsPromptDialog";
+import { TimeZoneConfirmDialog } from "@/components/calendar/TimeZoneConfirmDialog";
+import { TimeZoneTravelDialog } from "@/components/calendar/TimeZoneTravelDialog";
 import type { PauseReason } from "@/components/calendar/PauseDialogs";
 import { TRACK_PROTOCOL, toISODate, type ISODate, type Track, type YearMonth } from "@/lib/calendar";
 import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
 import { getMoonHighlightsForMonth } from "@/lib/calendar/moon-highlights";
 import { createClient } from "@/lib/supabase/server";
+import { effectiveTimeZone } from "@/lib/timezone-preference";
 
 // Mock location until onboarding captures the user's real one — Berlin, as a placeholder.
 // New Moon/Full Moon barely depend on location (just which local date the UTC moment falls
@@ -48,7 +50,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "track, last_period_date, cycle_length, paused_reason, role, notifications_prompt_answered_at",
+      "track, last_period_date, cycle_length, paused_reason, role, notifications_prompt_answered_at, timezone, home_timezone, timezone_reverts_on, timezone_confirmed_at, timezone_travel_declined",
     )
     .eq("user_id", user.id)
     .single();
@@ -129,13 +131,39 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const moonHighlights = await getMoonHighlightsForMonth(viewedMonth, MOCK_LOCATION.lat, MOCK_LOCATION.lon);
   const todayISO = isCurrentMonth ? toISODate(viewedMonth, now.getUTCDate()) : undefined;
 
-  // Null only for accounts that pre-date the onboarding consent screen — everyone since has
-  // answered the question there, and saveOnboardingProfile stamps it.
-  const needsNotificationsPrompt = profile.notifications_prompt_answered_at == null;
+  // Two time-zone questions, and at most one of them is worth asking at a time.
+  //
+  // Confirmation comes first and outranks travel: an account that has never confirmed a zone
+  // has nothing meaningful to compare the device against, so "you seem to have moved" would be
+  // noise. Everyone existing today lands here once, because a zone we detected for somebody is
+  // not a zone they told us.
+  const needsTimeZoneConfirmation = profile.timezone_confirmed_at == null;
+  const currentZone = effectiveTimeZone(
+    {
+      timezone: profile.timezone,
+      homeTimezone: profile.home_timezone,
+      revertsOn: profile.timezone_reverts_on,
+    },
+    now,
+  );
 
   return (
     <main className="flex flex-1 flex-col items-center gap-10 px-6 py-16">
-      {needsNotificationsPrompt && <NotificationsPromptDialog userId={user.id} />}
+      {needsTimeZoneConfirmation ? (
+        <TimeZoneConfirmDialog
+          userId={user.id}
+          savedTimeZone={profile.timezone}
+          needsOptIn={profile.notifications_prompt_answered_at == null}
+        />
+      ) : (
+        currentZone && (
+          <TimeZoneTravelDialog
+            userId={user.id}
+            currentZone={currentZone}
+            declinedZone={profile.timezone_travel_declined}
+          />
+        )
+      )}
 
       <MonthNav
         current={viewedMonth}

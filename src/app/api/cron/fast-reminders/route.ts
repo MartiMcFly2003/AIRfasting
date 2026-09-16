@@ -8,6 +8,7 @@ import {
   type ReminderPlan,
 } from "@/lib/reminders/fast-reminder-schedule";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { effectiveTimeZone } from "@/lib/timezone-preference";
 import { shiftIsoDate } from "@/lib/zoned-time";
 
 /**
@@ -29,6 +30,8 @@ const SCAN_DAYS = 2;
 interface ProfileRow {
   user_id: string;
   timezone: string | null;
+  home_timezone: string | null;
+  timezone_reverts_on: string | null;
   notifications_opt_in: boolean | null;
   users: { email: string | null } | null;
 }
@@ -68,7 +71,9 @@ export async function GET(request: Request) {
   const userIds = [...new Set(planRows.map((row) => row.user_id))];
   const { data: profileRows, error: profilesError } = await supabase
     .from("user_profiles")
-    .select("user_id, timezone, notifications_opt_in, users(email)")
+    .select(
+      "user_id, timezone, home_timezone, timezone_reverts_on, notifications_opt_in, users(email)",
+    )
     .in("user_id", userIds);
 
   if (profilesError) {
@@ -95,7 +100,18 @@ export async function GET(request: Request) {
       skipped.optedOut += 1;
       continue;
     }
-    if (!profile.timezone) {
+    // Resolved rather than read straight off the row: a trip with an end date expires on its
+    // own, and the sender has to honour that the same way the UI does.
+    const timeZone = effectiveTimeZone(
+      {
+        timezone: profile.timezone,
+        homeTimezone: profile.home_timezone,
+        revertsOn: profile.timezone_reverts_on,
+      },
+      now,
+    );
+
+    if (!timeZone) {
       skipped.noTimeZone += 1;
       continue;
     }
@@ -116,9 +132,9 @@ export async function GET(request: Request) {
       reminder1hSentAt: row.reminder_1h_sent_at,
     };
 
-    for (const reminder of dueRemindersForPlan(plan, profile.timezone, now)) {
+    for (const reminder of dueRemindersForPlan(plan, timeZone, now)) {
       try {
-        await sendOne(supabase, reminder, profile.timezone, email, siteUrl, now);
+        await sendOne(supabase, reminder, timeZone, email, siteUrl, now);
         sent += 1;
       } catch (err) {
         failures.push(
