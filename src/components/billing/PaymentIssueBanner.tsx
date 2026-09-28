@@ -56,7 +56,7 @@ export function PaymentIssueBanner({ frozen, daysRemaining }: PaymentIssueBanner
         disabled={loading}
         className="mt-3 rounded-lg border border-ivory/30 px-4 py-2 font-accent text-xs uppercase tracking-wider text-ivory hover:bg-ivory/10 disabled:opacity-40"
       >
-        {loading ? "Opening…" : "Update payment details"}
+        {loading ? "Opening…" : "Keep Premium — update my payment method"}
       </button>
     </div>
   );
