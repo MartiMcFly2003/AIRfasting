@@ -32,6 +32,8 @@ interface ProfileRow {
   timezone: string | null;
   home_timezone: string | null;
   timezone_reverts_on: string | null;
+  fast_reminder_24h_opt_in: boolean | null;
+  fast_reminder_1h_opt_in: boolean | null;
   notifications_opt_in: boolean | null;
   users: { email: string | null } | null;
 }
@@ -72,7 +74,7 @@ export async function GET(request: Request) {
   const { data: profileRows, error: profilesError } = await supabase
     .from("user_profiles")
     .select(
-      "user_id, timezone, home_timezone, timezone_reverts_on, notifications_opt_in, users(email)",
+      "user_id, timezone, home_timezone, timezone_reverts_on, notifications_opt_in, fast_reminder_24h_opt_in, fast_reminder_1h_opt_in, users(email)",
     )
     .in("user_id", userIds);
 
@@ -86,7 +88,7 @@ export async function GET(request: Request) {
 
   // Counted rather than logged per user: this runs unattended and the totals are what tell you
   // whether reminders are silently going nowhere.
-  const skipped = { optedOut: 0, noTimeZone: 0, noEmail: 0, noProfile: 0 };
+  const skipped = { optedOut: 0, kindOptedOut: 0, noTimeZone: 0, noEmail: 0, noProfile: 0 };
   const failures: string[] = [];
   let sent = 0;
 
@@ -133,6 +135,17 @@ export async function GET(request: Request) {
     };
 
     for (const reminder of dueRemindersForPlan(plan, timeZone, now)) {
+      // Each reminder can be declined on its own: the day-before one is about preparing and the
+      // hour-before one is a starting pistol, and wanting only one of those is reasonable.
+      // Null means the column predates the preference, which is a yes.
+      const wanted =
+        reminder.kind === "24h"
+          ? profile.fast_reminder_24h_opt_in !== false
+          : profile.fast_reminder_1h_opt_in !== false;
+      if (!wanted) {
+        skipped.kindOptedOut += 1;
+        continue;
+      }
       try {
         await sendOne(supabase, reminder, timeZone, email, siteUrl, now);
         sent += 1;

@@ -51,6 +51,14 @@ export function buildFastReminderEmail(
         ? `Your ${label} starts at ${startTime}, about an hour from now.`
         : `Your ${label} starts in about an hour.`;
 
+  // Names the reminder this email actually is, and says the other can be kept. An unsubscribe
+  // line that only offers "all of it, off" pushes somebody who dislikes one of the two into
+  // silencing both — or into the spam button, which costs the sending domain far more.
+  const optOutLine =
+    reminder.kind === "24h"
+      ? `Don't need the day-before note? You can keep just the one-hour reminder, or turn both off, in your <a href="${settingsLink}">settings</a>.`
+      : `Don't need the one-hour nudge? You can keep just the day-before reminder, or turn both off, in your <a href="${settingsLink}">settings</a>.`;
+
   const nudge =
     reminder.kind === "24h"
       ? "Today is a good day to prepare — ease off heavy food and keep your water up, so tomorrow starts from a settled place."
@@ -61,7 +69,7 @@ export function buildFastReminderEmail(
     <p>${opening}${duration}</p>
     <p>${nudge}</p>
     <p><a href="${calendarLink}">Open your calendar</a></p>
-    <p>Don't want these? You can turn reminders off in your <a href="${settingsLink}">settings</a>.</p>
+    <p>${optOutLine}</p>
     <p>Your AIRfasting team</p>
   `.trim();
 

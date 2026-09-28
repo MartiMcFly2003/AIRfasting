@@ -16,7 +16,7 @@ export default async function SettingsPage() {
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "subscription_status, notifications_opt_in, marketing_opt_in, timezone, home_timezone, timezone_reverts_on",
+      "subscription_status, notifications_opt_in, marketing_opt_in, timezone, home_timezone, timezone_reverts_on, fast_reminder_24h_opt_in, fast_reminder_1h_opt_in",
     )
     .eq("user_id", user.id)
     .single();
@@ -31,6 +31,8 @@ export default async function SettingsPage() {
               userId={user.id}
               initialNotificationsOptIn={profile.notifications_opt_in ?? false}
               initialMarketingOptIn={profile.marketing_opt_in ?? false}
+              initialReminder24h={profile.fast_reminder_24h_opt_in ?? true}
+              initialReminder1h={profile.fast_reminder_1h_opt_in ?? true}
             />
           </div>
         )}
