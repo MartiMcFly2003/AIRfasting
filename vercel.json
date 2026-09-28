@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/fast-reminders",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/billing-freeze",
+      "schedule": "30 9 * * *"
     }
   ]
 }

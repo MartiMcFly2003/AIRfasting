@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LogOutButton } from "@/components/auth/LogOutButton";
 import { ManageSubscriptionLink } from "@/components/billing/ManageSubscriptionLink";
+import { PaymentIssueBanner } from "@/components/billing/PaymentIssueBanner";
 import { CalendarTrackManager } from "@/components/calendar/CalendarTrackManager";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import { TimeZoneConfirmDialog } from "@/components/calendar/TimeZoneConfirmDialog";
@@ -11,6 +12,7 @@ import { TRACK_PROTOCOL, toISODate, type ISODate, type Track, type YearMonth } f
 import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
 import { getMoonHighlightsForMonth } from "@/lib/calendar/moon-highlights";
 import { createClient } from "@/lib/supabase/server";
+import { graceDaysRemaining, type DunningState } from "@/lib/billing/dunning";
 import { locationForTimeZone } from "@/lib/calendar/zone-location";
 import { effectiveTimeZone } from "@/lib/timezone-preference";
 
@@ -53,7 +55,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "track, last_period_date, cycle_length, paused_reason, role, notifications_prompt_answered_at, timezone, home_timezone, timezone_reverts_on, timezone_confirmed_at, timezone_travel_declined",
+      "track, last_period_date, cycle_length, paused_reason, role, notifications_prompt_answered_at, timezone, home_timezone, timezone_reverts_on, timezone_confirmed_at, timezone_travel_declined, subscription_status, past_due_since, dunning_frozen_at",
     )
     .eq("user_id", user.id)
     .single();
@@ -131,6 +133,16 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     { month: "long", year: "numeric", timeZone: "UTC" },
   );
 
+  // A failing renewal is surfaced in the app as well as by email, because the freeze takes the
+  // "Manage subscription" link away with premium and this banner carries the only remaining way
+  // back to the billing portal.
+  const dunning: DunningState = {
+    subscriptionStatus: profile.subscription_status,
+    pastDueSince: profile.past_due_since,
+    frozenAt: profile.dunning_frozen_at,
+  };
+  const showPaymentIssue = profile.subscription_status === "past_due";
+
   // Two time-zone questions, and at most one of them is worth asking at a time.
   //
   // Confirmation comes first and outranks travel: an account that has never confirmed a zone
@@ -155,6 +167,13 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   return (
     <main className="flex flex-1 flex-col items-center gap-10 px-6 py-16">
+      {showPaymentIssue && (
+        <PaymentIssueBanner
+          frozen={profile.dunning_frozen_at != null}
+          daysRemaining={graceDaysRemaining(dunning, now)}
+        />
+      )}
+
       {needsTimeZoneConfirmation ? (
         <TimeZoneConfirmDialog
           userId={user.id}
