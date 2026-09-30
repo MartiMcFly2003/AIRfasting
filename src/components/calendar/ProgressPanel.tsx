@@ -68,8 +68,8 @@ export function ProgressPanel({ fastLogs, fastPlans, todayISO }: ProgressPanelPr
               value={stats.plansDue === 0 ? "—" : `${stats.plansKept}/${stats.plansDue}`}
               label="Kept to plan"
             />
+            <Figure value={stats.unplannedFasts} label="Unplanned" />
             <Figure value={stats.totalCompletedFasts} label="Fasts" />
-            <Figure value={stats.fastsThisMonth} label="This month" />
             <Figure value={stats.totalFastingHours} unit="h" label="Total hours" />
             <Figure value={stats.averageFastHours} unit="h" label="Average" />
             <Figure value={stats.longestFastHours} unit="h" label="Longest" />

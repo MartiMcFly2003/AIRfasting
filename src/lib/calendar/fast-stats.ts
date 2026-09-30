@@ -4,8 +4,12 @@ import type { ISODate } from "@/lib/calendar/types";
 export interface FastStats {
   totalCompletedFasts: number;
   totalFastingHours: number;
-  /** Fasts logged in the same calendar month as the reference date. */
-  fastsThisMonth: number;
+  /**
+   * Fasts started on the timer with no plan behind them. Reported plainly: it is the other
+   * half of "kept to plan", and somebody fasting mostly on impulse is worth showing that to
+   * without it being scored against them.
+   */
+  unplannedFasts: number;
   /** Planned fasts whose day has passed — the ones that could have been kept. */
   plansDue: number;
   /** Of those, the ones actually carried out. */
@@ -47,16 +51,13 @@ function planWasKept(plan: FastPlan, logs: FastLog[]): boolean {
  * Adherence is the honest measure and the kinder one. Keeping to a 14-hour plan counts exactly
  * as much as keeping to a 24-hour one, and a rest day costs nothing.
  *
- * Pure. `today` scopes the month figure and decides which plans have come due; everything else
- * is all-time.
+ * Pure. `today` decides which plans have come due; everything else is all-time.
  */
 export function computeFastStats(
   logs: FastLog[],
   plans: FastPlan[] = [],
   today?: ISODate,
 ): FastStats {
-  const month = today?.slice(0, 7);
-
   // Only plans whose day has arrived can have been kept or missed; tomorrow's is neither.
   const due = today ? plans.filter((p) => p.plannedDate <= today) : [];
   const kept = due.filter((plan) => planWasKept(plan, logs));
@@ -71,7 +72,9 @@ export function computeFastStats(
   return {
     totalCompletedFasts: logs.length,
     totalFastingHours: Math.round(logs.reduce((sum, l) => sum + l.actualMinutes, 0) / 60),
-    fastsThisMonth: month ? logs.filter((l) => l.loggedDate.startsWith(month)).length : 0,
+    // planId is null only for a fast that never had a plan: the schema cascades a plan's
+    // deletion to its log rather than orphaning it, so this cannot be a plan since removed.
+    unplannedFasts: logs.filter((l) => l.planId == null).length,
     plansDue: due.length,
     plansKept: kept.length,
     planStreak,
