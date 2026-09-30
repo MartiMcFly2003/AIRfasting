@@ -2,8 +2,8 @@ import type { LegalDoc } from "./types";
 
 export const PRIVACY_POLICY: LegalDoc = {
   "title": "AIRfasting Privacy Policy",
-  "version": "Version: Draft v1.0",
-  "lastUpdated": "Last updated: 29 July 2026",
+  "version": "Version: Draft v1.1",
+  "lastUpdated": "Last updated: 30 September 2026",
   "blocks": [
     {
       "type": "h1",
@@ -171,6 +171,14 @@ export const PRIVACY_POLICY: LegalDoc = {
       "text": "Where we rely on consent, you may withdraw it at any time without affecting the lawfulness of processing before withdrawal."
     },
     {
+      "type": "p",
+      "text": "Keeping donated fasting records for research after you delete your account"
+    },
+    {
+      "type": "p",
+      "text": "Explicit consent (Art. 9(2)(a)), given separately at the moment of deletion. Once the records have been anonymised, they are no longer personal data and the GDPR no longer applies to them."
+    },
+    {
       "type": "h1",
       "text": "6. How We Use Your Data"
     },
@@ -193,6 +201,30 @@ export const PRIVACY_POLICY: LegalDoc = {
     {
       "type": "p",
       "text": "We do not use your health data for advertising purposes, and we do not sell your health data."
+    },
+    {
+      "type": "h2",
+      "text": "6.1 Fasting Records Donated for Research"
+    },
+    {
+      "type": "p",
+      "text": "When you delete your AIRfasting account, we ask you once — and only then — whether we may keep your fasting records for research into how fasting interacts with the menstrual cycle, and to improve the guidance AIRfasting gives. The answer is no unless you choose otherwise, and your account is deleted in exactly the same way either way."
+    },
+    {
+      "type": "p",
+      "text": "If you agree, we keep a record of each fast you logged: its type and length, whether it matched what you had planned, how many days into your cycle it fell, how far into your time with AIRfasting it was, your fasting track, and your age as a range such as 35-44."
+    },
+    {
+      "type": "p",
+      "text": "Before those records are stored we remove everything that connects them to you: your name, your email address, your account identifier, and every calendar date. What remains describes fasting rather than a person, and cannot be traced back to you by us or by anyone else."
+    },
+    {
+      "type": "p",
+      "text": "Because the result is anonymous, it is no longer personal data under the GDPR. Two consequences follow, and you should weigh them before agreeing. We may keep and use it indefinitely, including in research we publish or share with collaborators. And the rights described in Section 9 cannot apply to it: we are unable to find, correct, export or delete your records afterwards, because nothing identifies which they are."
+    },
+    {
+      "type": "p",
+      "text": "We never ask for this at sign-up, and it is never bundled with any other consent. Declining affects nothing."
     },
     {
       "type": "h1",
@@ -261,7 +293,8 @@ export const PRIVACY_POLICY: LegalDoc = {
       "items": [
         "Account and health data: retained while your account is active, and in a limited read-only state after subscription cancellation or expiry, unless you request deletion.",
         "Payment records: retained as required by applicable tax and accounting law.",
-        "Data after account deletion: deleted immediately upon a verified deletion request, except that residual copies may persist in backups for up to 30 days before being purged, and except where retention is required by law."
+        "Data after account deletion: deleted immediately upon a verified deletion request, except that residual copies may persist in backups for up to 30 days before being purged, and except where retention is required by law.",
+        "Donated research records (Section 6.1): anonymised at the moment you donate them and kept indefinitely. They carry no identifiers and no dates, cannot be linked back to you, and are therefore unaffected by any later deletion request."
       ]
     },
     {
