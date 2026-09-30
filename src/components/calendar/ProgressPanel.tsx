@@ -74,9 +74,11 @@ export function ProgressPanel({ fastLogs, fastPlans, todayISO }: ProgressPanelPr
             <Figure value={stats.averageFastHours} unit="h" label="Average" />
             <Figure value={stats.longestFastHours} unit="h" label="Longest" />
           </div>
+          {/* Preparation is named on purpose: it is what the day-before reminder and the prep
+              nudge are for, and it makes the point about more than length. */}
           <p className="mt-4 font-accent text-[10px] leading-relaxed text-silver">
-            Keeping to your plan is what counts here &mdash; a shorter fast you finish as
-            intended is worth more than a longer one you didn&apos;t plan.
+            Keeping to your plan is what counts here &mdash; a fast done as intended, even a
+            short one, is worth more than a longer one you didn&apos;t plan or prepare for.
           </p>
         </>
       )}
