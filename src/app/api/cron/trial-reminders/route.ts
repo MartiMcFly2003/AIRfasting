@@ -80,5 +80,12 @@ export async function GET(request: Request) {
     }
   }
 
+  // Logged, not just returned: the JSON body of a cron response goes nowhere anybody looks,
+  // so a month of refused sends can sit in this array behind a cheerful 200. console.error
+  // puts it in Vercel's logs, where a failing job is visible without being asked about.
+  if (failures.length) {
+    console.error(`trial-reminders: ${failures.length} send(s) failed`, failures);
+  }
+
   return NextResponse.json({ sent, failures });
 }
