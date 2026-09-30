@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { graceDaysRemaining, hasPremiumAccess, type DunningState } from "@/lib/billing/dunning";
+import {
+  graceDaysRemaining,
+  hasPremiumAccess,
+  resolveDunningOnStatusChange,
+  type DunningState,
+} from "@/lib/billing/dunning";
 import {
   buildPaymentFailedEmail,
   buildPaymentRecoveredEmail,
@@ -170,15 +175,19 @@ export async function POST(request: Request) {
       const customerId = subscription.customer as string;
       const profile = await loadProfile(supabase, customerId);
 
-      // past_due arriving here rather than through an invoice event still has to start the
-      // clock, or the grace would be measured from a timestamp nothing ever set.
-      const enteringDunning = subscription.status === "past_due";
-      const pastDueSince = enteringDunning ? (profile?.past_due_since ?? now.toISOString()) : null;
+      const { pastDueSince, frozenAt, recovered } = resolveDunningOnStatusChange(
+        subscription.status,
+        {
+          pastDueSince: profile?.past_due_since ?? null,
+          frozenAt: profile?.dunning_frozen_at ?? null,
+        },
+        now,
+      );
 
       const state: DunningState = {
         subscriptionStatus: subscription.status,
         pastDueSince,
-        frozenAt: enteringDunning ? (profile?.dunning_frozen_at ?? null) : null,
+        frozenAt,
       };
 
       const update = {
@@ -189,9 +198,10 @@ export async function POST(request: Request) {
           ? new Date(subscription.trial_end * 1000).toISOString()
           : null,
         past_due_since: pastDueSince,
-        // Recovering to any healthy status clears the freeze. invoice.payment_succeeded usually
-        // gets there first, but a bare status change must not leave it set either.
-        ...(enteringDunning ? {} : { dunning_frozen_at: null, dunning_last_invoice: null }),
+        // Recovery clears the freeze. invoice.payment_succeeded usually gets there first, but a
+        // bare status change must not leave it set either. Anything short of recovery leaves
+        // the freeze exactly as it is.
+        ...(recovered ? { dunning_frozen_at: null, dunning_last_invoice: null } : {}),
       };
 
       const userId = subscription.metadata?.supabase_user_id;

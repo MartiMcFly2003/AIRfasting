@@ -58,3 +58,43 @@ export function isDueToFreeze(state: DunningState, now: Date): boolean {
   const ends = graceEndsAt(state);
   return ends != null && now.getTime() >= ends.getTime();
 }
+
+/** Statuses that mean the subscription is genuinely well again. Everything else Stripe can
+ *  report — past_due, unpaid, incomplete, paused — is some shade of not-paying. */
+const HEALTHY_STATUSES = ["active", "trialing"];
+
+export interface DunningTransition {
+  /** What past_due_since should become. */
+  pastDueSince: string | null;
+  /** What dunning_frozen_at should become. */
+  frozenAt: string | null;
+  /** Whether this status ends the dunning run, so the caller can clear the rest of it. */
+  recovered: boolean;
+}
+
+/**
+ * How a subscription status change moves the dunning clock.
+ *
+ * The rule worth stating out loud: only a healthy status ends a run. It is tempting to treat
+ * "not past_due" as recovery, but Stripe reports several statuses that are neither failing nor
+ * recovered, and clearing the clock on those restarts the grace when the subscription returns
+ * to past_due — so a subscription that wobbles between states never reaches its freeze and
+ * keeps premium indefinitely. A real account gained three extra weeks that way.
+ *
+ * past_due starts a clock if none is running. Any other unhealthy status keeps whatever clock
+ * exists but never starts one, since it is not itself evidence that a payment has failed.
+ */
+export function resolveDunningOnStatusChange(
+  status: string,
+  current: { pastDueSince: string | null; frozenAt: string | null },
+  now: Date,
+): DunningTransition {
+  if (HEALTHY_STATUSES.includes(status)) {
+    return { pastDueSince: null, frozenAt: null, recovered: true };
+  }
+
+  const started =
+    current.pastDueSince ?? (status === "past_due" ? now.toISOString() : null);
+
+  return { pastDueSince: started, frozenAt: current.frozenAt, recovered: false };
+}
