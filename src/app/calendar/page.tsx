@@ -12,6 +12,7 @@ import { TRACK_PROTOCOL, toISODate, type ISODate, type Track, type YearMonth } f
 import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
 import { getMoonHighlightsForMonth } from "@/lib/calendar/moon-highlights";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { graceDaysRemaining, type DunningState } from "@/lib/billing/dunning";
 import { locationForTimeZone } from "@/lib/calendar/zone-location";
 import { effectiveTimeZone } from "@/lib/timezone-preference";
@@ -55,7 +56,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "track, last_period_date, cycle_length, paused_reason, role, notifications_prompt_answered_at, timezone, home_timezone, timezone_reverts_on, timezone_confirmed_at, timezone_travel_declined, subscription_status, past_due_since, dunning_frozen_at",
+      "track, last_period_date, cycle_length, paused_reason, role, notifications_prompt_answered_at, timezone, home_timezone, timezone_reverts_on, timezone_confirmed_at, timezone_travel_declined, subscription_status, past_due_since, dunning_frozen_at, last_seen_at",
     )
     .eq("user_id", user.id)
     .single();
@@ -142,6 +143,26 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     frozenAt: profile.dunning_frozen_at,
   };
   const showPaymentIssue = profile.subscription_status === "past_due";
+
+  // Somebody opened the app: the only place that gets recorded. Throttled to an hour because
+  // the question is whether they still turn up, not when exactly — and a write on every
+  // navigation would cost more than the answer is worth.
+  //
+  // Service role, because a user must not be able to set their own last-seen, and awaited
+  // rather than fired and forgotten, since a serverless response ending can cut a loose promise
+  // off mid-flight. Failure is swallowed: this is telemetry, and it must never cost somebody
+  // their calendar.
+  const lastSeen = profile.last_seen_at ? Date.parse(profile.last_seen_at) : 0;
+  if (now.getTime() - lastSeen > 60 * 60 * 1000) {
+    try {
+      await createServiceRoleClient()
+        .from("user_profiles")
+        .update({ last_seen_at: now.toISOString() })
+        .eq("user_id", user.id);
+    } catch (error) {
+      console.error("last_seen_at update failed", error);
+    }
+  }
 
   // Two time-zone questions, and at most one of them is worth asking at a time.
   //

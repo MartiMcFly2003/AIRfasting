@@ -32,6 +32,7 @@ interface Row {
   past_due_since: string | null;
   dunning_frozen_at: string | null;
   dunning_warned_at: string | null;
+  last_seen_at: string | null;
   users: { email: string | null; created_at: string | null } | null;
 }
 
@@ -66,7 +67,7 @@ export default async function AdminPage() {
   const { data, error } = await service
     .from("user_profiles")
     .select(
-      "user_id, role, subscription_status, cancellation_reason, canceled_at, trial_ends_at, stripe_customer_id, stripe_subscription_id, past_due_since, dunning_frozen_at, dunning_warned_at, users(email, created_at)",
+      "user_id, role, subscription_status, cancellation_reason, canceled_at, trial_ends_at, stripe_customer_id, stripe_subscription_id, past_due_since, dunning_frozen_at, dunning_warned_at, last_seen_at, users(email, created_at)",
     );
 
   if (error) {
@@ -110,6 +111,9 @@ export default async function AdminPage() {
   const findings = stripeSubs ? reconcile(profiles, stripeSubs, now) : [];
   const costly = findings.filter((f) => f.costsMoney);
 
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000).toISOString();
+  const activeThisWeek = rows.filter((r) => r.last_seen_at && r.last_seen_at >= sevenDaysAgo);
+
   const premium = rows.filter((r) => r.role === "premium");
   const paying = rows.filter((r) => r.subscription_status === "active");
   const trialing = rows.filter((r) => r.subscription_status === "trialing");
@@ -129,11 +133,12 @@ export default async function AdminPage() {
         </Link>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <Stat label="Accounts" value={rows.length} />
         <Stat label="Premium" value={premium.length} />
         <Stat label="Paying" value={paying.length} />
         <Stat label="In trial" value={trialing.length} />
+        <Stat label="Seen this week" value={activeThisWeek.length} />
         <Stat label="Payment failing" value={dunning.length} tone={dunning.length ? "warn" : undefined} />
         <Stat label="Unpaid Premium" value={costly.length} tone={costly.length ? "bad" : undefined} />
       </section>
@@ -220,7 +225,7 @@ export default async function AdminPage() {
                 <th className={TH}>Who</th>
                 <th className={TH}>Ended</th>
                 <th className={TH}>Why</th>
-                <th className={TH}>Trial ended</th>
+                <th className={TH}>Last seen</th>
               </tr>
             </thead>
             <tbody>
@@ -239,7 +244,13 @@ export default async function AdminPage() {
                       <span className="text-silver">unknown — predates this record</span>
                     )}
                   </td>
-                  <td className={TD}>{day(r.trial_ends_at)}</td>
+                  <td className={TD}>
+                    {r.last_seen_at ? (
+                      day(r.last_seen_at)
+                    ) : (
+                      <span className="text-silver">not since we started recording</span>
+                    )}
+                  </td>
                 </tr>
               ))}
               {cancelled.length === 0 && (
