@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { computeFastStats } from "@/lib/calendar/fast-stats";
-import type { FastLog } from "@/lib/calendar/fast-plans";
+import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
 import { buildTrialReminderEmail } from "@/lib/email/trial-reminder-email";
 import { sendEmail } from "@/lib/email/resend";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
@@ -58,7 +58,23 @@ export async function GET(request: Request) {
         endedAt: null,
       }));
 
-      const stats = computeFastStats(logs);
+      // Plans as well as logs: the email's progress line reports how many planned days were
+      // kept, which cannot be known from the logs alone.
+      const { data: plansData } = await supabase
+        .from("fast_plans")
+        .select("id, planned_date, fast_type, planned_hours, start_time")
+        .eq("user_id", row.user_id);
+
+      const plans: FastPlan[] = (plansData ?? []).map((r) => ({
+        id: r.id,
+        plannedDate: r.planned_date,
+        fastType: r.fast_type,
+        plannedHours: r.planned_hours,
+        startTime: r.start_time,
+      }));
+
+      const today = now.toISOString().slice(0, 10) as FastPlan["plannedDate"];
+      const stats = computeFastStats(logs, plans, today);
       const daysRemaining = Math.max(
         1,
         Math.round((new Date(row.trial_ends_at).getTime() - now.getTime()) / (24 * 3600 * 1000)),

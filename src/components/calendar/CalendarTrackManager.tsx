@@ -324,7 +324,9 @@ export function CalendarTrackManager({
         </div>
       )}
 
-      {tier === "premium" && <ProgressPanel fastLogs={fastLogs} todayISO={todayISO} />}
+      {tier === "premium" && (
+        <ProgressPanel fastLogs={fastLogs} fastPlans={fastPlans} todayISO={todayISO} />
+      )}
 
       {showRegularBanner && (
         <RegularDetectedBanner

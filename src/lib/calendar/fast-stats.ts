@@ -1,54 +1,86 @@
-import { daysBetween } from "@/lib/calendar/date-utils";
-import type { FastLog } from "@/lib/calendar/fast-plans";
+import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
 import type { ISODate } from "@/lib/calendar/types";
 
 export interface FastStats {
   totalCompletedFasts: number;
-  streakDays: number;
   totalFastingHours: number;
-  /** The longest single fast, in hours. 0 when nothing has been logged. */
-  longestFastHours: number;
   /** Fasts logged in the same calendar month as the reference date. */
   fastsThisMonth: number;
+  /** Planned fasts whose day has passed — the ones that could have been kept. */
+  plansDue: number;
+  /** Of those, the ones actually carried out. */
+  plansKept: number;
+  /** Consecutive most-recent due plans kept, counting back until one was missed. */
+  planStreak: number;
+  /** The longest single fast, in hours — shown as information, never as an achievement. */
+  longestFastHours: number;
+  /** Mean logged fast length in hours, to one decimal. */
+  averageFastHours: number;
 }
 
 /**
- * Consecutive-day streak ending at the most recent logged date (not necessarily today) —
- * counts back from the latest log, day by day, until a gap is found.
+ * Whether a planned fast was carried out.
+ *
+ * Reaching the planned hours counts, and so does exceeding them — the measure is "did you do
+ * what you set out to do", not "how close to the number did you land". A plan with no stated
+ * duration is kept by logging it at all, since there was nothing to fall short of.
  */
-function computeStreakDays(logs: FastLog[]): number {
-  if (logs.length === 0) return 0;
-  const uniqueDates = Array.from(new Set(logs.map((l) => l.loggedDate)))
-    .sort()
-    .reverse();
-  let streak = 1;
-  for (let i = 0; i < uniqueDates.length - 1; i++) {
-    if (daysBetween(uniqueDates[i + 1], uniqueDates[i]) === 1) streak++;
-    else break;
-  }
-  return streak;
+function planWasKept(plan: FastPlan, logs: FastLog[]): boolean {
+  const log = logs.find((l) => l.planId === plan.id || l.loggedDate === plan.plannedDate);
+  if (!log) return false;
+  if (plan.plannedHours == null) return true;
+  return log.actualMinutes >= Number(plan.plannedHours) * 60;
 }
 
 /**
- * What somebody has actually done, from their logged fasts.
+ * What somebody has done, measured against what they intended.
  *
- * Pure, and deliberately not owned by either of its callers: it began as personalisation for
- * the trial-ending email and is now also what the progress panel shows a subscriber about
- * themselves. The same numbers in both places is the point — an email claiming a four-day
- * streak the app doesn't show would be worse than sending nothing.
+ * Longest and average are here because they are worth knowing — somebody deciding what to
+ * plan next is better off knowing they average 17 hours than guessing. What matters is that
+ * they are reported and never celebrated: the badge is for keeping to a plan, and nothing in
+ * this app congratulates anyone for going longer.
  *
- * `today` only scopes the month count; every other figure is all-time.
+ * There is deliberately no consecutive-days streak. It rewards fasting every single day, which
+ * argues against the rest and refeed days the protocols are built on — and an app that gates
+ * onboarding for eating-disorder history should not hand out a prize for never stopping.
+ *
+ * Adherence is the honest measure and the kinder one. Keeping to a 14-hour plan counts exactly
+ * as much as keeping to a 24-hour one, and a rest day costs nothing.
+ *
+ * Pure. `today` scopes the month figure and decides which plans have come due; everything else
+ * is all-time.
  */
-export function computeFastStats(logs: FastLog[], today?: ISODate): FastStats {
+export function computeFastStats(
+  logs: FastLog[],
+  plans: FastPlan[] = [],
+  today?: ISODate,
+): FastStats {
   const month = today?.slice(0, 7);
+
+  // Only plans whose day has arrived can have been kept or missed; tomorrow's is neither.
+  const due = today ? plans.filter((p) => p.plannedDate <= today) : [];
+  const kept = due.filter((plan) => planWasKept(plan, logs));
+
+  const byMostRecent = [...due].sort((a, b) => b.plannedDate.localeCompare(a.plannedDate));
+  let planStreak = 0;
+  for (const plan of byMostRecent) {
+    if (!planWasKept(plan, logs)) break;
+    planStreak += 1;
+  }
+
   return {
     totalCompletedFasts: logs.length,
-    streakDays: computeStreakDays(logs),
     totalFastingHours: Math.round(logs.reduce((sum, l) => sum + l.actualMinutes, 0) / 60),
+    fastsThisMonth: month ? logs.filter((l) => l.loggedDate.startsWith(month)).length : 0,
+    plansDue: due.length,
+    plansKept: kept.length,
+    planStreak,
     longestFastHours:
+      logs.length === 0 ? 0 : Math.round(Math.max(...logs.map((l) => l.actualMinutes)) / 60),
+    averageFastHours:
       logs.length === 0
         ? 0
-        : Math.round(Math.max(...logs.map((l) => l.actualMinutes)) / 60),
-    fastsThisMonth: month ? logs.filter((l) => l.loggedDate.startsWith(month)).length : 0,
+        : Math.round((logs.reduce((sum, l) => sum + l.actualMinutes, 0) / logs.length / 60) * 10) /
+          10,
   };
 }

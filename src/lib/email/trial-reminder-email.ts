@@ -8,9 +8,14 @@ function buildProgressLine(stats: FastStats): string {
     return "You haven't logged a fast yet — this is a good week to plan one, so you can see what Premium actually tracks for you.";
   }
   const fasts = `${stats.totalCompletedFasts} fast${stats.totalCompletedFasts === 1 ? "" : "s"}`;
-  const streak = `${stats.streakDays}-day streak`;
   const hours = `${stats.totalFastingHours} fasting hour${stats.totalFastingHours === 1 ? "" : "s"}`;
-  return `So far you've completed ${fasts}, maintained a ${streak}, and logged ${hours}.`;
+  // Deliberately no streak and no longest fast — see fast-stats.ts. What is praised here is
+  // keeping to a plan, and the email should not celebrate what the app has stopped rewarding.
+  const kept =
+    stats.plansDue > 0
+      ? ` You've kept to ${stats.plansKept} of your ${stats.plansDue} planned fasting days.`
+      : "";
+  return `So far you've completed ${fasts} and logged ${hours}.${kept}`;
 }
 
 /** Personalized trial-ending copy — deliberately never generic "your trial is ending" text.
