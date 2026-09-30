@@ -98,3 +98,28 @@ export function resolveDunningOnStatusChange(
 
   return { pastDueSince: started, frozenAt: current.frozenAt, recovered: false };
 }
+
+/**
+ * True when the freeze is close enough to be worth warning about, and nothing has warned yet.
+ *
+ * "Close enough" is the next 24 hours, which pairs with a daily job: the run that sees the
+ * grace ending within a day is the last run before the one that freezes, so "tomorrow" in the
+ * email is accurate rather than approximate.
+ *
+ * Deliberately false once the grace has already run out — at that point the freeze happens on
+ * this same run, and a warning about something that is about to occur in the same breath would
+ * arrive alongside the notice that it already has.
+ */
+export function isDueToWarn(
+  state: DunningState & { warnedAt: string | null },
+  now: Date,
+): boolean {
+  if (state.warnedAt || state.frozenAt) return false;
+  if (state.subscriptionStatus !== "past_due") return false;
+
+  const ends = graceEndsAt(state);
+  if (!ends) return false;
+
+  const hoursAway = (ends.getTime() - now.getTime()) / (60 * 60 * 1000);
+  return hoursAway > 0 && hoursAway <= 24;
+}

@@ -91,6 +91,7 @@ export async function POST(request: Request) {
           past_due_since: null,
           dunning_frozen_at: null,
           dunning_last_invoice: null,
+          dunning_warned_at: null,
         })
         .eq("user_id", userId);
       break;
@@ -163,6 +164,7 @@ export async function POST(request: Request) {
           past_due_since: null,
           dunning_frozen_at: null,
           dunning_last_invoice: null,
+          dunning_warned_at: null,
         })
         .eq("user_id", profile.user_id);
 
@@ -201,7 +203,9 @@ export async function POST(request: Request) {
         // Recovery clears the freeze. invoice.payment_succeeded usually gets there first, but a
         // bare status change must not leave it set either. Anything short of recovery leaves
         // the freeze exactly as it is.
-        ...(recovered ? { dunning_frozen_at: null, dunning_last_invoice: null } : {}),
+        ...(recovered
+          ? { dunning_frozen_at: null, dunning_last_invoice: null, dunning_warned_at: null }
+          : {}),
       };
 
       const userId = subscription.metadata?.supabase_user_id;
@@ -226,6 +230,7 @@ export async function POST(request: Request) {
         past_due_since: null,
         dunning_frozen_at: null,
         dunning_last_invoice: null,
+        dunning_warned_at: null,
       };
       const userId = subscription.metadata?.supabase_user_id;
       if (userId) {

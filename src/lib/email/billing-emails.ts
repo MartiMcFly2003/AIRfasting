@@ -106,3 +106,23 @@ export function buildPaymentRecoveredEmail(
     ${signOff()}`,
   };
 }
+
+/**
+ * The day before premium is withdrawn — the one email in this sequence that can prevent the
+ * thing it describes, so it leads with the deadline and the fix rather than the history.
+ */
+export function buildFreezeTomorrowEmail(
+  siteUrl: string,
+  name: string | null,
+): { subject: string; html: string } {
+  return {
+    subject: "Tomorrow your AIRfasting Premium will pause",
+    html: `
+    <p>${greet(name)}</p>
+    <p><strong>Tomorrow your Premium features will pause</strong>, because we still haven't been able to take payment. An expired card is the usual reason, and it takes a minute to fix.</p>
+    <p><a href="${billingLink(siteUrl)}">Keep Premium &mdash; update my payment method</a></p>
+    <p>Do it before tomorrow and nothing changes: your plans, reminders and history carry on as they are, and you won't notice anything at all.</p>
+    <p>If the payment doesn't go through, Premium pauses &mdash; but nothing is deleted, and updating your details brings it all straight back.</p>
+    ${signOff()}`,
+  };
+}

@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { isDueToFreeze, type DunningState } from "@/lib/billing/dunning";
-import { buildAccessFrozenEmail } from "@/lib/email/billing-emails";
+import { isDueToFreeze, isDueToWarn, type DunningState } from "@/lib/billing/dunning";
+import { buildAccessFrozenEmail, buildFreezeTomorrowEmail } from "@/lib/email/billing-emails";
 import { sendEmail } from "@/lib/email/resend";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 /**
- * Withdraws premium from accounts whose grace period has run out, and tells them.
+ * Warns accounts a day before their grace runs out, and withdraws premium from those whose
+ * grace has run out — telling them in both cases.
  *
  * This exists because the freeze is the one step in dunning that no Stripe event announces: the
  * failure, the retries and the final cancellation all arrive as webhooks, but "seven days have
@@ -24,6 +25,7 @@ interface FreezeRow {
   subscription_status: string | null;
   past_due_since: string | null;
   dunning_frozen_at: string | null;
+  dunning_warned_at: string | null;
   users: { email: string | null } | null;
 }
 
@@ -39,7 +41,9 @@ export async function GET(request: Request) {
 
   const { data: rows, error } = await supabase
     .from("user_profiles")
-    .select("user_id, subscription_status, past_due_since, dunning_frozen_at, users(email)")
+    .select(
+      "user_id, subscription_status, past_due_since, dunning_frozen_at, dunning_warned_at, users(email)",
+    )
     .eq("subscription_status", "past_due")
     .is("dunning_frozen_at", null);
 
@@ -48,6 +52,7 @@ export async function GET(request: Request) {
   }
 
   let frozen = 0;
+  let warned = 0;
   let stillInGrace = 0;
   const failures: string[] = [];
 
@@ -59,7 +64,30 @@ export async function GET(request: Request) {
     };
 
     if (!isDueToFreeze(state, now)) {
-      stillInGrace += 1;
+      // The day before is the last moment this can still be prevented, so it gets the one
+      // email in the sequence that is worth acting on rather than just reading.
+      if (isDueToWarn({ ...state, warnedAt: row.dunning_warned_at }, now)) {
+        const { error: warnError } = await supabase
+          .from("user_profiles")
+          .update({ dunning_warned_at: now.toISOString() })
+          .eq("user_id", row.user_id);
+
+        if (warnError) {
+          failures.push(`${row.user_id}: ${warnError.message}`);
+        } else {
+          warned += 1;
+          const warnEmail = row.users?.email;
+          if (warnEmail) {
+            try {
+              await sendEmail({ to: warnEmail, ...buildFreezeTomorrowEmail(siteUrl, null) });
+            } catch (sendError) {
+              failures.push(`${row.user_id}: ${(sendError as Error).message}`);
+            }
+          }
+        }
+      } else {
+        stillInGrace += 1;
+      }
       continue;
     }
 
@@ -93,5 +121,5 @@ export async function GET(request: Request) {
     console.error(`billing-freeze: ${failures.length} failure(s)`, failures);
   }
 
-  return NextResponse.json({ frozen, stillInGrace, failures });
+  return NextResponse.json({ frozen, warned, stillInGrace, failures });
 }
