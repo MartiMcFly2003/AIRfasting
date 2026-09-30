@@ -81,6 +81,22 @@ export default async function AdminPage() {
   const rows = (data as unknown as Row[] | null) ?? [];
   const now = new Date();
 
+  // Anonymous by construction — four facts, nobody's name. See the migration for why it stays
+  // that way.
+  const { data: deletionRows } = await service
+    .from("account_deletions")
+    .select("deleted_at, had_subscribed, days_since_signup, ever_logged_a_fast")
+    .order("deleted_at", { ascending: false });
+  const deletions =
+    (deletionRows as
+      | {
+          deleted_at: string;
+          had_subscribed: boolean;
+          days_since_signup: number | null;
+          ever_logged_a_fast: boolean;
+        }[]
+      | null) ?? [];
+
   // A Stripe outage should cost the page its comparison, not its contents.
   let stripeSubs: StripeSnapshot[] | null = null;
   let stripeError: string | null = null;
@@ -133,12 +149,13 @@ export default async function AdminPage() {
         </Link>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
         <Stat label="Accounts" value={rows.length} />
         <Stat label="Premium" value={premium.length} />
         <Stat label="Paying" value={paying.length} />
         <Stat label="In trial" value={trialing.length} />
         <Stat label="Seen this week" value={activeThisWeek.length} />
+        <Stat label="Deleted" value={deletions.length} />
         <Stat label="Payment failing" value={dunning.length} tone={dunning.length ? "warn" : undefined} />
         <Stat label="Unpaid Premium" value={costly.length} tone={costly.length ? "bad" : undefined} />
       </section>
@@ -264,6 +281,43 @@ export default async function AdminPage() {
           </table>
         </div>
       </section>
+      <section>
+        <h2 className="font-heading text-lg tracking-wide text-ivory">
+          Deleted accounts{" "}
+          <span className="font-accent text-xs text-silver">
+            &mdash; recorded anonymously; nothing here identifies anyone
+          </span>
+        </h2>
+        {deletions.length === 0 ? (
+          <p className="mt-2 font-body text-sm text-silver">
+            Nobody has deleted their account since this started being recorded.
+          </p>
+        ) : (
+          <div className="mt-2 overflow-x-auto rounded-2xl border border-ivory/10">
+            <table className="w-full min-w-[32rem] border-collapse">
+              <thead className="bg-ivory/5">
+                <tr>
+                  <th className={TH}>When</th>
+                  <th className={TH}>Had subscribed</th>
+                  <th className={TH}>Days signed up</th>
+                  <th className={TH}>Ever fasted</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deletions.map((d, i) => (
+                  <tr key={i} className="border-t border-ivory/10">
+                    <td className={TD}>{day(d.deleted_at)}</td>
+                    <td className={TD}>{d.had_subscribed ? "yes" : "never reached checkout"}</td>
+                    <td className={TD}>{d.days_since_signup ?? "—"}</td>
+                    <td className={TD}>{d.ever_logged_a_fast ? "yes" : "no"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
     </main>
   );
 }
