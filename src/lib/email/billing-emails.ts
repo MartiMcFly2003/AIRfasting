@@ -37,24 +37,29 @@ export function buildPaymentFailedEmail(
     <p>We tried your payment method again and it was declined, so your Premium features are still paused.</p>
     <p>Your plans, logged fasts and history are all safe — nothing has been deleted. Updating your payment details restores everything straight away.</p>
     <p><a href="${billingLink(siteUrl)}">Keep Premium &mdash; update my payment method</a></p>
-    <p>We'll keep trying for a few more weeks. If payment still hasn't gone through by then, your account moves to the free plan and you'll keep your data.</p>
+    <p><strong>If you don't update your payment details, your Premium plan will be cancelled automatically.</strong> Your account moves to the free plan and your data stays with you, but your Premium features won't come back without starting a new subscription.</p>
     ${signOff()}`,
     };
   }
 
-  const window =
+  // The remaining days are stated as a deadline, not as breathing room. An earlier draft led
+  // with "your features stay on for 7 days, so there's no rush" — accurate, and an invitation
+  // to put it off until there is no time left.
+  const deadline =
     daysRemaining <= 0
-      ? "today"
-      : `for the next ${daysRemaining} day${daysRemaining === 1 ? "" : "s"}`;
+      ? "If we can't take payment today, your Premium features pause — your data stays exactly where it is, and updating your details brings everything back."
+      : `If we still can't take payment, your Premium features pause in ${daysRemaining} day${
+          daysRemaining === 1 ? "" : "s"
+        }. Nothing is deleted, but your plans, reminders and history stop until it's sorted.`;
 
   return {
     subject: "Your AIRfasting payment didn't go through",
     html: `
     <p>${greet(name)}</p>
-    <p>We couldn't take this month's ${MONTHLY_PRICE_LABEL} payment for AIRfasting Premium. This usually means a card has expired, or a bank declined the charge — often nothing more than a routine security check.</p>
-    <p><strong>Your Premium features stay on ${window}</strong>, so there's no rush and nothing is interrupted while you sort it out.</p>
+    <p>We couldn't take this month's ${MONTHLY_PRICE_LABEL} payment for AIRfasting Premium. Usually that's an expired card or a routine bank check — and it takes a minute to put right.</p>
+    <p><strong>Please update your payment details now.</strong></p>
     <p><a href="${billingLink(siteUrl)}">Keep Premium &mdash; update my payment method</a></p>
-    <p>If the payment goes through before then, you'll never notice the difference. If it doesn't, Premium pauses after ${DUNNING_GRACE_DAYS} days — your data stays exactly where it is, and updating your details brings everything back.</p>
+    <p>${deadline}</p>
     ${signOff()}`,
   };
 }
@@ -72,7 +77,7 @@ export function buildAccessFrozenEmail(
     <p>Nothing has been lost. Your fasting plans, your logged history and your cycle data are all still here, exactly as you left them.</p>
     <p><a href="${billingLink(siteUrl)}">Keep Premium &mdash; update my payment method</a></p>
     <p>That's all it takes; Premium comes straight back.</p>
-    <p>We'll keep trying your payment method for the next few weeks. If it still doesn't go through, your account simply moves to the free plan.</p>
+    <p><strong>If you don't update your payment details, your Premium plan will be cancelled automatically.</strong> You'd keep your data and the free plan, but getting Premium back would mean starting a new subscription.</p>
     ${signOff()}`,
   };
 }
