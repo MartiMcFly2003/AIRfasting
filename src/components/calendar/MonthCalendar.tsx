@@ -12,6 +12,7 @@ import {
 } from "@/lib/calendar";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
 import type { FastOccupiedInfo, RefeedDayInfo } from "@/lib/calendar/refeed";
+import { runsPastMorning } from "@/lib/calendar/refeed";
 import {
   DryFastIcon,
   PHASE_ICONS,
@@ -448,16 +449,37 @@ export function MonthCalendar({
                   <StopIcon className="h-2.5 w-2.5 text-coral/80" />
                 </button>
               )}
-              {!existingPlan && !adHocLog && !refeedInfo && occupiedInfo && (
-                <button
-                  type="button"
-                  onClick={() => onOccupiedDayClick?.(day.date)}
-                  aria-label={`${occupiedInfo.fastType} fast already running until ${occupiedInfo.endTime} — tap to learn more`}
-                  className={`absolute bottom-1.5 right-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-obsidian ring-1 ${FAST_MARKER_STYLE[occupiedInfo.fastType].ring} transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ivory`}
-                >
-                  <StopIcon className={`h-2.5 w-2.5 ${FAST_MARKER_STYLE[occupiedInfo.fastType].text}`} />
-                </button>
-              )}
+              {!existingPlan &&
+                !adHocLog &&
+                !refeedInfo &&
+                occupiedInfo &&
+                (() => {
+                  // A fast still running at nine in the morning is a fasting day for whoever is
+                  // living it, so it carries the fast's own symbol rather than only a blocked-out
+                  // marker. Dimmed, because it is the same fast continuing and not a second one
+                  // starting — two identical icons would read as two fasts.
+                  const style = FAST_MARKER_STYLE[occupiedInfo.fastType];
+                  const ContinuingIcon = style.Icon;
+                  const continues = runsPastMorning(occupiedInfo, day.date);
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onOccupiedDayClick?.(day.date)}
+                      aria-label={
+                        continues
+                          ? `${occupiedInfo.fastType} fast continuing from ${occupiedInfo.startDate}, until ${occupiedInfo.endTime} — tap for details`
+                          : `${occupiedInfo.fastType} fast already running until ${occupiedInfo.endTime} — tap to learn more`
+                      }
+                      className={`absolute bottom-1.5 right-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-obsidian ring-1 ${style.ring} transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ivory${continues ? " opacity-60" : ""}`}
+                    >
+                      {continues ? (
+                        <ContinuingIcon className={`h-2.5 w-2.5 ${style.text}`} />
+                      ) : (
+                        <StopIcon className={`h-2.5 w-2.5 ${style.text}`} />
+                      )}
+                    </button>
+                  );
+                })()}
               <span className={`font-body text-sm ${isToday ? "font-semibold" : ""} text-ivory`}>
                 {dayNumber}
               </span>

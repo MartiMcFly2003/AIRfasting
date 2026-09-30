@@ -10,6 +10,7 @@ import {
 } from "@/lib/calendar";
 import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
 import type { FastOccupiedInfo, RefeedDayInfo } from "@/lib/calendar/refeed";
+import { runsPastMorning } from "@/lib/calendar/refeed";
 import { FAST_MARKER_STYLE } from "./MonthCalendar";
 import { EkadashiSparkleIcon, FullMoonIcon, NewMoonIcon } from "./MoonIcons";
 import { StopIcon } from "./PhaseIcons";
@@ -305,19 +306,39 @@ export function WeeklyRhythmCalendar({
                   <StopIcon className="h-2.5 w-2.5 text-coral/80" />
                 </button>
               )}
-              {!existingPlan && !adHocLogByDate.has(date) && !refeedDays?.[date] && occupiedDays?.[date] && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOccupiedDayClick?.(date);
-                  }}
-                  aria-label={`${occupiedDays[date].fastType} fast already running until ${occupiedDays[date].endTime} — tap to learn more`}
-                  className={`absolute bottom-1.5 right-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-obsidian ring-1 ${FAST_MARKER_STYLE[occupiedDays[date].fastType].ring} transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ivory`}
-                >
-                  <StopIcon className={`h-2.5 w-2.5 ${FAST_MARKER_STYLE[occupiedDays[date].fastType].text}`} />
-                </button>
-              )}
+              {!existingPlan &&
+                !adHocLogByDate.has(date) &&
+                !refeedDays?.[date] &&
+                occupiedDays?.[date] &&
+                (() => {
+                  // Same rule as the month view — a fast still running at nine shows its own
+                  // symbol on that day, dimmed because it is the same fast continuing.
+                  const occupied = occupiedDays[date];
+                  const style = FAST_MARKER_STYLE[occupied.fastType];
+                  const ContinuingIcon = style.Icon;
+                  const continues = runsPastMorning(occupied, date);
+                  return (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOccupiedDayClick?.(date);
+                      }}
+                      aria-label={
+                        continues
+                          ? `${occupied.fastType} fast continuing from ${occupied.startDate}, until ${occupied.endTime} — tap for details`
+                          : `${occupied.fastType} fast already running until ${occupied.endTime} — tap to learn more`
+                      }
+                      className={`absolute bottom-1.5 right-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-obsidian ring-1 ${style.ring} transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ivory${continues ? " opacity-60" : ""}`}
+                    >
+                      {continues ? (
+                        <ContinuingIcon className={`h-2.5 w-2.5 ${style.text}`} />
+                      ) : (
+                        <StopIcon className={`h-2.5 w-2.5 ${style.text}`} />
+                      )}
+                    </button>
+                  );
+                })()}
               {isToday ? (
                 <span
                   className={`flex h-6 w-6 items-center justify-center rounded-full ${style.solidBg} font-body text-sm font-semibold text-obsidian ring-2 ring-ivory/50 ${style.glow}`}

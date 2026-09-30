@@ -92,8 +92,12 @@ export interface FastOccupiedInfo {
   fastType: FastType;
   /** The date the fast's own marker is rendered on. */
   startDate: ISODate;
+  /** When it began, so a day in the middle of a long fast can still say where it came from. */
+  startTime: string;
   endDate: ISODate;
   endTime: string;
+  /** The whole fast, not the part falling on any one day — what the reader is being told about. */
+  totalHours: number;
   /** Null for an ad-hoc live-tracked fast with no linked plan — nothing to offer an "adjust" CTA for. */
   planId: string | null;
 }
@@ -115,12 +119,42 @@ export function computeFastOccupiedDays(plans: FastPlan[], logs: FastLog[]): Rec
       if (date === startDate) continue;
       if (chosenEndMs[date] === undefined || window.endMs > chosenEndMs[date]) {
         chosenEndMs[date] = window.endMs;
-        result[date] = { fastType: window.fastType, startDate, endDate, endTime: formatTime(window.endMs), planId: window.planId };
+        result[date] = {
+          fastType: window.fastType,
+          startDate,
+          startTime: formatTime(window.startMs),
+          endDate,
+          endTime: formatTime(window.endMs),
+          totalHours: Math.round(((window.endMs - window.startMs) / MS_PER_HOUR) * 10) / 10,
+          planId: window.planId,
+        };
       }
     }
   }
 
   return result;
+}
+
+/**
+ * The hour on a later day from which a fast is worth marking on that day at all.
+ *
+ * A fast begun in the evening almost always crosses midnight, so "does it touch tomorrow" would
+ * mark nearly every second day and mean nothing. Nine o'clock is the line because it is past
+ * waking and past breakfast: a fast still running then shapes how that day has to be planned,
+ * where one ending at 03:00 does not.
+ */
+export const CONTINUATION_VISIBLE_FROM = "09:00";
+
+/**
+ * Whether this fast is still running at CONTINUATION_VISIBLE_FROM on the given day — i.e.
+ * whether the day should carry the fast's own symbol rather than only being blocked out.
+ *
+ * Days wholly inside a long fast always qualify; the last day depends on when it ends.
+ */
+export function runsPastMorning(info: FastOccupiedInfo, date: ISODate): boolean {
+  if (date < info.endDate) return true;
+  if (date > info.endDate) return false;
+  return info.endTime >= CONTINUATION_VISIBLE_FROM;
 }
 
 export interface RefeedDayInfo {

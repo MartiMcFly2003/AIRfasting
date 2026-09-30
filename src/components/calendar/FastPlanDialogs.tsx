@@ -5,6 +5,7 @@ import type { ISODate } from "@/lib/calendar";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
 import {
   computeFastEnd,
+  runsPastMorning,
   DRY_DISCLAIMER_THRESHOLD_HOURS,
   REFEED_THRESHOLD_HOURS,
   type FastOccupiedInfo,
@@ -278,11 +279,42 @@ export function FastContinuationDialog({ date, info, onAdjustOriginalFast, onClo
     <DialogShell>
       <p className="font-accent text-xs uppercase tracking-wider text-gold">{formatDateLabel(date)}</p>
       <div className="mt-1">
-        <DialogTitle>Fast already in progress</DialogTitle>
+        <DialogTitle>
+          {runsPastMorning(info, date) ? "This fast is still running" : "Fast already in progress"}
+        </DialogTitle>
       </div>
       <DialogBody>
-        {`A ${info.fastType} fast starting ${formatDateLabel(info.startDate)} was already defined to run until ${formatTimeLabel(info.endTime)} today. To extend your fasting window, adjust that fast or plan another one for a later day.`}
+        {`This is one ${info.fastType} fast, shown on every day it covers — not a separate fast each day.`}
       </DialogBody>
+
+      {/* The same three facts whichever day was tapped. A fast spanning three days puts a marker
+          on all three, and each of them has to describe the whole thing identically, or the
+          calendar starts telling three different stories about one fast. */}
+      <dl className="mt-3 flex flex-col gap-1.5">
+        <div className="flex justify-between gap-3">
+          <dt className="font-accent text-xs uppercase tracking-wider text-silver">Started</dt>
+          <dd className="font-body text-sm text-ivory">
+            {`${formatDateLabel(info.startDate)} at ${formatTimeLabel(info.startTime)}`}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="font-accent text-xs uppercase tracking-wider text-silver">Total length</dt>
+          <dd className="font-body text-sm text-ivory">
+            {`${info.totalHours} hour${info.totalHours === 1 ? "" : "s"}`}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="font-accent text-xs uppercase tracking-wider text-silver">Ends</dt>
+          <dd className="font-body text-sm text-ivory">
+            {`${formatDateLabel(info.endDate)} at ${formatTimeLabel(info.endTime)}`}
+          </dd>
+        </div>
+      </dl>
+
+      <p className="mt-3 font-body text-sm leading-relaxed text-silver">
+        To change your fasting window, adjust this fast rather than planning another one on a day
+        it already covers.
+      </p>
       <div className="mt-5 flex flex-col gap-2">
         {onAdjustOriginalFast && (
           <SecondaryButton onClick={onAdjustOriginalFast}>Adjust the original fast</SecondaryButton>
