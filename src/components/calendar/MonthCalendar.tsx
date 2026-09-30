@@ -320,9 +320,12 @@ export function MonthCalendar({
                 isInteractiveCell ? "cursor-pointer select-none" : ""
               } ${isPreviewCell ? "outline outline-2 outline-ivory/60" : ""}`}
             >
+              {/* Top left, where a western reader looks first: this marks the day a phase
+                  begins, which is the one thing on the cell that explains the days after it.
+                  The other corners are taken — period bottom left, fast bottom right. */}
               {isBlockStart && (
                 <span
-                  className={`absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-obsidian ring-1 ${style.border}`}
+                  className={`absolute -top-1.5 -left-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-obsidian ring-1 ${style.border}`}
                 >
                   <Icon className={`h-4 w-4 ${style.text}`} strokeWidth={2} />
                 </span>
