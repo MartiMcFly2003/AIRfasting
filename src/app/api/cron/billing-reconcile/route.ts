@@ -92,11 +92,15 @@ export async function GET(request: Request) {
     findings,
   );
 
-  const adminEmail = process.env.ADMIN_EMAIL;
+  // Same variable as the admin gate, which may list more than one address.
+  const recipients = (process.env.ADMIN_EMAIL ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
   let notified = false;
-  if (adminEmail) {
+  if (recipients.length > 0) {
     try {
-      await sendEmail({ to: adminEmail, ...buildReconcileEmail(findings, profiles.length) });
+      await sendEmail({ to: recipients, ...buildReconcileEmail(findings, profiles.length) });
       notified = true;
     } catch (sendError) {
       console.error("billing-reconcile: report failed to send", (sendError as Error).message);

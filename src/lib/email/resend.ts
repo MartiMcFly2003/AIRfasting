@@ -1,5 +1,6 @@
 export interface SendEmailArgs {
-  to: string;
+  /** One address, or several — Resend accepts an array and delivers one mail to each. */
+  to: string | string[];
   subject: string;
   html: string;
 }

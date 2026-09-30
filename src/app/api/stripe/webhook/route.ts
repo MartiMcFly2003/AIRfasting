@@ -92,6 +92,9 @@ export async function POST(request: Request) {
           dunning_frozen_at: null,
           dunning_last_invoice: null,
           dunning_warned_at: null,
+          // A fresh subscription is not the previous one, so its ending does not apply.
+          cancellation_reason: null,
+          canceled_at: null,
         })
         .eq("user_id", userId);
       break;
@@ -222,11 +225,31 @@ export async function POST(request: Request) {
       const customerId = subscription.customer as string;
       const profile = await loadProfile(supabase, customerId);
 
+      // Why it ended, recorded now because it stops being knowable in a moment: past_due_since
+      // is cleared by this same write, and it is the only evidence here that a cancellation
+      // followed a failure. Stripe's own account is preferred where it gives one; our dunning
+      // state answers for the older API versions and events that don't.
+      const stripeReason = subscription.cancellation_details?.reason ?? null;
+      const cancellationReason =
+        stripeReason === "payment_failed"
+          ? "payment_failed"
+          : stripeReason === "cancellation_requested"
+            ? "customer_requested"
+            : stripeReason === "payment_disputed"
+              ? "payment_disputed"
+              : profile?.past_due_since
+                ? "payment_failed"
+                : "unknown";
+
       // stripe_customer_id / stripe_subscription_id / trial_ends_at deliberately kept, not
       // nulled — historical record, and lets a later resubscribe reuse the same customer.
       const update = {
         role: "free",
         subscription_status: "canceled",
+        cancellation_reason: cancellationReason,
+        canceled_at: subscription.canceled_at
+          ? new Date(subscription.canceled_at * 1000).toISOString()
+          : now.toISOString(),
         past_due_since: null,
         dunning_frozen_at: null,
         dunning_last_invoice: null,
