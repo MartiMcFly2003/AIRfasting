@@ -157,6 +157,44 @@ export function runsPastMorning(info: FastOccupiedInfo, date: ISODate): boolean 
   return info.endTime >= CONTINUATION_VISIBLE_FROM;
 }
 
+/**
+ * Hours of eating that must separate one fast ending from the next beginning.
+ *
+ * Without a floor, two sub-threshold fasts can be chained into one long one with a token gap —
+ * two twelve-hour dry fasts thirty minutes apart is a twenty-four-hour dry fast that never met
+ * the disclaimer at twenty-four hours. Four hours is wide enough not to interfere with the
+ * pattern this exists to allow (twelve on, twelve off) and narrow enough not to forbid anything
+ * a person would reasonably plan.
+ *
+ * PLACEHOLDER: the number is a guess at a clinical question and wants confirming with the coach.
+ */
+export const MIN_EATING_WINDOW_HOURS = 4;
+
+function minutesToTime(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * The earliest a new fast may start on a day an earlier one runs into — or null when that day
+ * has no room for one.
+ *
+ * A day wholly inside a longer fast has none by definition. A day the fast merely ends on has
+ * whatever is left after it finishes and the eating window has passed, unless that runs past
+ * midnight, in which case the answer is again none.
+ *
+ * This is what makes consecutive overnight fasts plannable: a twelve-hour fast from 20:00 ends
+ * at 08:00, and the evening of that same day was previously unreachable because the morning
+ * belonged to the fast before it.
+ */
+export function earliestNextStartOn(info: FastOccupiedInfo, date: ISODate): string | null {
+  if (date !== info.endDate) return null;
+  const earliest = parseStartTime(info.endTime) + MIN_EATING_WINDOW_HOURS * 60;
+  if (earliest >= 24 * 60) return null;
+  return minutesToTime(earliest);
+}
+
 export interface RefeedDayInfo {
   /** The fast that produced this refeed window — determines whether the dry→water
    *  exception applies (only when this is "dry"). */

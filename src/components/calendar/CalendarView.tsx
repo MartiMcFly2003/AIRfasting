@@ -15,6 +15,7 @@ import {
 import { getAverageOfLastNCycles } from "@/lib/calendar/cycle-analysis";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
 import {
+  earliestNextStartOn,
   computeFastOccupiedDays,
   computeRefeedDays,
   type FastOccupiedInfo,
@@ -238,6 +239,21 @@ export function CalendarView({
     if (info) setDialog({ step: "occupiedInfo", date, info });
   }
 
+  /** The evening of a day whose morning was still the previous fast — the case that makes
+   *  consecutive overnight fasts plannable at all. */
+  function handlePlanAfterOccupied(date: ISODate) {
+    const info = occupiedDays[date];
+    const earliest = info ? earliestNextStartOn(info, date) : null;
+    if (!earliest) return;
+    const block = days.find((d) => d.date === date)?.block;
+    setDialog({
+      step: "planFast",
+      dates: [date],
+      blockLabel: block ? PHASE_LABELS[block] : "",
+      minStartTime: earliest,
+    });
+  }
+
   function handleAdjustOriginalFast(planId: string) {
     const plan = fastPlans.find((p) => p.id === planId);
     if (plan) handleEditPlan(plan);
@@ -438,6 +454,14 @@ export function CalendarView({
         <FastContinuationDialog
           date={dialog.date}
           info={dialog.info}
+          earliestNextStart={
+            tier === "premium" ? earliestNextStartOn(dialog.info, dialog.date) : null
+          }
+          onPlanLaterToday={
+            tier === "premium" && earliestNextStartOn(dialog.info, dialog.date)
+              ? () => handlePlanAfterOccupied(dialog.date)
+              : undefined
+          }
           onAdjustOriginalFast={
             tier === "premium" && dialog.info.planId
               ? () => handleAdjustOriginalFast(dialog.info.planId!)

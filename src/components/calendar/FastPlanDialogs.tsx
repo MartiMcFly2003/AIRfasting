@@ -263,6 +263,11 @@ export function RefeedInfoDialog({ date, info, onPlanWaterFastException, onClose
 }
 
 export interface FastContinuationDialogProps {
+  /** Offered when this day still has room for another fast after the current one finishes —
+   *  the evening of a morning that belonged to the night before. */
+  onPlanLaterToday?: () => void;
+  /** The time that fast could begin, for saying so plainly rather than making them discover it. */
+  earliestNextStart?: string | null;
   date: ISODate;
   info: FastOccupiedInfo;
   /** Only offered when info.planId is set (a real plan to edit) and the caller allows editing
@@ -274,7 +279,14 @@ export interface FastContinuationDialogProps {
 /** Shown for a day that's still occupied by an earlier fast's tail (started the day before,
  *  or earlier, and runs into this one) but isn't itself a refeed day — e.g. a fast under the
  *  20h refeed threshold that simply crosses midnight. */
-export function FastContinuationDialog({ date, info, onAdjustOriginalFast, onClose }: FastContinuationDialogProps) {
+export function FastContinuationDialog({
+  date,
+  info,
+  onAdjustOriginalFast,
+  onPlanLaterToday,
+  earliestNextStart,
+  onClose,
+}: FastContinuationDialogProps) {
   return (
     <DialogShell>
       <p className="font-accent text-xs uppercase tracking-wider text-gold">{formatDateLabel(date)}</p>
@@ -316,6 +328,11 @@ export function FastContinuationDialog({ date, info, onAdjustOriginalFast, onClo
         it already covers.
       </p>
       <div className="mt-5 flex flex-col gap-2">
+        {onPlanLaterToday && earliestNextStart && (
+          <PrimaryButton onClick={onPlanLaterToday}>
+            {`Plan another fast from ${formatTimeLabel(earliestNextStart)}`}
+          </PrimaryButton>
+        )}
         {onAdjustOriginalFast && (
           <SecondaryButton onClick={onAdjustOriginalFast}>Adjust the original fast</SecondaryButton>
         )}
