@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { computeTrialReminderStats } from "@/lib/billing/trial-reminder-stats";
+import { computeFastStats } from "@/lib/calendar/fast-stats";
 import type { FastLog } from "@/lib/calendar/fast-plans";
 import { buildTrialReminderEmail } from "@/lib/email/trial-reminder-email";
 import { sendEmail } from "@/lib/email/resend";
@@ -53,12 +53,12 @@ export async function GET(request: Request) {
         fastType: r.fast_type,
         plannedHours: r.planned_hours,
         actualMinutes: r.actual_minutes,
-        // Not selected above — computeTrialReminderStats has no use for real timestamps.
+        // Not selected above — computeFastStats has no use for real timestamps.
         startedAt: null,
         endedAt: null,
       }));
 
-      const stats = computeTrialReminderStats(logs);
+      const stats = computeFastStats(logs);
       const daysRemaining = Math.max(
         1,
         Math.round((new Date(row.trial_ends_at).getTime() - now.getTime()) / (24 * 3600 * 1000)),

@@ -32,6 +32,7 @@ import { MoonSyncCalendarView } from "./MoonSyncCalendarView";
 import { IrregularPeriodDialog, PauseStatusStrip, UnpauseDialog, type PauseReason } from "./PauseDialogs";
 import { DateEntryDialog, MonthEntryDialog } from "./PeriodLogDialogs";
 import { PrepRefeedBanner } from "./PrepRefeedBanner";
+import { ProgressPanel } from "./ProgressPanel";
 import { RegularDetectedBanner } from "./RegularDetectedBanner";
 import { WeeklyRhythmCalendarView } from "./WeeklyRhythmCalendarView";
 
@@ -322,6 +323,8 @@ export function CalendarTrackManager({
           </button>
         </div>
       )}
+
+      {tier === "premium" && <ProgressPanel fastLogs={fastLogs} todayISO={todayISO} />}
 
       {showRegularBanner && (
         <RegularDetectedBanner

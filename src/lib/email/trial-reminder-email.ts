@@ -1,9 +1,9 @@
-import type { TrialReminderStats } from "@/lib/billing/trial-reminder-stats";
+import type { FastStats } from "@/lib/calendar/fast-stats";
 
 // Keep in sync with the Stripe Price manually — no dynamic lookup here, this is static copy.
 const MONTHLY_PRICE_LABEL = "€11/month";
 
-function buildProgressLine(stats: TrialReminderStats): string {
+function buildProgressLine(stats: FastStats): string {
   if (stats.totalCompletedFasts === 0) {
     return "You haven't logged a fast yet — this is a good week to plan one, so you can see what Premium actually tracks for you.";
   }
@@ -20,7 +20,7 @@ function buildProgressLine(stats: TrialReminderStats): string {
  *  `name` is optional — nothing in onboarding/auth collects a real name today, so this
  *  degrades to a generic greeting rather than fabricating one. */
 export function buildTrialReminderEmail(
-  stats: TrialReminderStats,
+  stats: FastStats,
   daysRemaining: number,
   siteUrl: string,
   name: string | null,
