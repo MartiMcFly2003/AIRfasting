@@ -15,6 +15,7 @@ import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
 import {
   computeFastOccupiedDays,
   computeRefeedDays,
+  earliestNextStartOn,
   type FastOccupiedInfo,
   type RefeedDayInfo,
 } from "@/lib/calendar/refeed";
@@ -160,6 +161,19 @@ export function WeeklyRhythmCalendarView({
     if (info) setDialog({ step: "occupiedInfo", date, info });
   }
 
+  /** Same as the month views: a day an earlier fast runs into can still start a later one. */
+  function handlePlanAfterOccupied(date: ISODate) {
+    const info = occupiedDays[date];
+    const earliest = info ? earliestNextStartOn(info, date) : null;
+    if (!earliest) return;
+    setDialog({
+      step: "planFast",
+      dates: [date],
+      blockLabel: blockLabelFor(date),
+      minStartTime: earliest,
+    });
+  }
+
   function handleAdjustOriginalFast(planId: string) {
     const plan = fastPlans.find((p) => p.id === planId);
     if (plan) handleEditPlan(plan);
@@ -222,6 +236,7 @@ export function WeeklyRhythmCalendarView({
         onRefeedDayClick={handleRefeedDayClick}
         occupiedDays={occupiedDays}
         onOccupiedDayClick={handleOccupiedDayClick}
+        onPlanAfterOccupied={tier === "premium" ? handlePlanAfterOccupied : undefined}
         activeFastPlanId={activeFastPlanId}
         tier={tier}
       />

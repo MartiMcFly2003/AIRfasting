@@ -10,7 +10,7 @@ import {
 } from "@/lib/calendar";
 import type { FastLog, FastPlan } from "@/lib/calendar/fast-plans";
 import type { FastOccupiedInfo, RefeedDayInfo } from "@/lib/calendar/refeed";
-import { runsPastMorning } from "@/lib/calendar/refeed";
+import { earliestNextStartOn, runsPastMorning } from "@/lib/calendar/refeed";
 import { FAST_MARKER_STYLE } from "./MonthCalendar";
 import { EkadashiSparkleIcon, FullMoonIcon, NewMoonIcon } from "./MoonIcons";
 import { StopIcon } from "./PhaseIcons";
@@ -113,6 +113,8 @@ export interface WeeklyRhythmCalendarProps {
    *  fast's own end date) renders as a refeed marker instead. */
   occupiedDays?: Record<ISODate, FastOccupiedInfo>;
   onOccupiedDayClick?: (date: ISODate) => void;
+  /** Tapping a day an earlier fast runs into, which still has room for another one later. */
+  onPlanAfterOccupied?: (date: ISODate) => void;
   activeFastPlanId?: string | null;
   /** Free tier can't create fastPlans at all, so any existing plan marker rendered under free
    *  tier is by definition leftover trial/premium data — dimmed as a reactivation lever. */
@@ -138,6 +140,7 @@ export function WeeklyRhythmCalendar({
   onRefeedDayClick,
   occupiedDays,
   onOccupiedDayClick,
+  onPlanAfterOccupied,
   activeFastPlanId,
   tier,
 }: WeeklyRhythmCalendarProps) {
@@ -156,7 +159,13 @@ export function WeeklyRhythmCalendar({
   for (const log of fastLogs ?? []) if (!log.planId) adHocLogByDate.set(log.loggedDate, log);
 
   function handleCellBodyClick(date: ISODate, dayLabel: WeeklyDayLabel, existingPlan: FastPlan | undefined) {
-    if (existingPlan || refeedDays?.[date] || occupiedDays?.[date]) return;
+    if (existingPlan || refeedDays?.[date]) return;
+    const occupied = occupiedDays?.[date];
+    if (occupied) {
+      const earliest = onPlanAfterOccupied ? earliestNextStartOn(occupied, date) : null;
+      if (earliest) onPlanAfterOccupied?.(date);
+      return;
+    }
     const weekDeepFastCount = deepFastingWeekdaysInWeek(date, fastPlans ?? []).length;
 
     if (armedForSecondDeepFastDay) {

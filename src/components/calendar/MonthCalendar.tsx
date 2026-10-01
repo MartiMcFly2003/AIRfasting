@@ -12,7 +12,7 @@ import {
 } from "@/lib/calendar";
 import type { FastLog, FastPlan, FastType } from "@/lib/calendar/fast-plans";
 import type { FastOccupiedInfo, RefeedDayInfo } from "@/lib/calendar/refeed";
-import { runsPastMorning } from "@/lib/calendar/refeed";
+import { earliestNextStartOn, runsPastMorning } from "@/lib/calendar/refeed";
 import {
   DryFastIcon,
   PHASE_ICONS,
@@ -150,6 +150,8 @@ export interface MonthCalendarProps {
   occupiedDays?: Record<ISODate, FastOccupiedInfo>;
   /** Click on an occupied-only day's marker, to explain the fast already running through it. */
   onOccupiedDayClick?: (date: ISODate) => void;
+  /** Tapping a day an earlier fast runs into, which still has room for another one later. */
+  onPlanAfterOccupied?: (date: ISODate) => void;
   /** The planId of the currently-live tracked fast, if any — its marker renders as a plain
    *  non-interactive indicator (the live timer supersedes manual logging while it's running). */
   activeFastPlanId?: string | null;
@@ -184,6 +186,7 @@ export function MonthCalendar({
   onRefeedDayClick,
   occupiedDays,
   onOccupiedDayClick,
+  onPlanAfterOccupied,
   activeFastPlanId,
   tier,
 }: MonthCalendarProps) {
@@ -288,6 +291,13 @@ export function MonthCalendar({
           // is more discoverable than the old badge-only entry point, not less. Refeed and
           // occupied days are excluded outright — the stop-icon marker is the only way back in
           // (via the dry→water exception dialog, refeed days only).
+          // A day an earlier fast ends on still has its evening free. It cannot join a drag
+          // range — the hours before the previous fast finished are not available — so it gets
+          // a plain tap of its own.
+          const planAfterFrom =
+            occupiedInfo && onPlanAfterOccupied
+              ? earliestNextStartOn(occupiedInfo, day.date)
+              : null;
           const isPremiumPlannable =
             day.fastingPossible && !existingPlan && !refeedInfo && !occupiedInfo && !!onPlanFastRange;
           const isLockedPlannable =
@@ -297,7 +307,7 @@ export function MonthCalendar({
             !occupiedInfo &&
             !onPlanFastRange &&
             !!onLockedPlanClick;
-          const isInteractiveCell = isPremiumPlannable || isLockedPlannable;
+          const isInteractiveCell = isPremiumPlannable || isLockedPlannable || !!planAfterFrom;
           const isPreviewCell = isPremiumPlannable && previewDates.has(day.date);
           const adHocLog = !existingPlan ? adHocLogByDate.get(day.date) : undefined;
 
@@ -315,6 +325,7 @@ export function MonthCalendar({
                     : undefined
               }
               onPointerEnter={isPremiumPlannable && dragAnchor ? () => setDragCurrent(day.date) : undefined}
+              onClick={planAfterFrom ? () => onPlanAfterOccupied?.(day.date) : undefined}
               style={isInteractiveCell ? { touchAction: "none" } : undefined}
               className={`relative aspect-square rounded-xl border-t-2 ${isToday ? style.todayBg : style.bg} ${style.border} flex items-center justify-center transition-colors ${
                 isInteractiveCell ? "cursor-pointer select-none" : ""
@@ -467,7 +478,10 @@ export function MonthCalendar({
                   return (
                     <button
                       type="button"
-                      onClick={() => onOccupiedDayClick?.(day.date)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOccupiedDayClick?.(day.date);
+                      }}
                       aria-label={
                         continues
                           ? `${occupiedInfo.fastType} fast continuing from ${occupiedInfo.startDate}, until ${occupiedInfo.endTime} — tap for details`

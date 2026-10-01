@@ -357,6 +357,7 @@ export function CalendarView({
         onRefeedDayClick={handleRefeedDayClick}
         occupiedDays={occupiedDays}
         onOccupiedDayClick={handleOccupiedDayClick}
+        onPlanAfterOccupied={tier === "premium" ? handlePlanAfterOccupied : undefined}
         activeFastPlanId={activeFastPlanId}
         tier={tier}
       />
